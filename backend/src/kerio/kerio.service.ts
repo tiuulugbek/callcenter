@@ -1,8 +1,9 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Inject, forwardRef } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios, { AxiosInstance } from 'axios';
 import { PrismaService } from '../common/prisma/prisma.service';
 import { CallsService } from '../calls/calls.service';
+import { WebSocketGateway } from '../common/websocket/websocket.gateway';
 
 export interface KerioCallRecord {
   id: string;
@@ -16,6 +17,7 @@ export interface KerioCallRecord {
   status: 'answered' | 'no_answer' | 'busy' | 'failed';
   recordingPath?: string;
   pbxCallId: string;
+  state?: 'kelyapti' | 'suhbatda' | 'yakunlandi' | 'javobsiz';
 }
 
 @Injectable()
@@ -26,11 +28,15 @@ export class KerioService {
   private readonly apiUsername: string;
   private readonly apiPassword: string;
   private syncInterval: NodeJS.Timeout | null = null;
+  private pollInterval: NodeJS.Timeout | null = null;
+  private activeCalls: Map<string, KerioCallRecord> = new Map();
 
   constructor(
     private configService: ConfigService,
     private prisma: PrismaService,
     private callsService: CallsService,
+    @Inject(forwardRef(() => WebSocketGateway))
+    private wsGateway: WebSocketGateway,
   ) {
     this.pbxHost = this.configService.get('KERIO_PBX_HOST') || '90.156.199.92';
     this.apiUsername = this.configService.get('KERIO_API_USERNAME') || '';
@@ -126,19 +132,23 @@ export class KerioService {
         throw new Error(`Kerio Operator API error: ${response.status} - ${response.statusText}`);
       }
 
-      const records: KerioCallRecord[] = response.data.map((record: any) => ({
-        id: record.id || record.call_id,
-        direction: record.direction === 'inbound' ? 'inbound' : 'outbound',
-        fromNumber: record.from_number || record.caller_id,
-        toNumber: record.to_number || record.destination,
-        extension: record.extension,
-        startTime: new Date(record.start_time),
-        endTime: record.end_time ? new Date(record.end_time) : undefined,
-        duration: record.duration,
-        status: this.mapKerioStatus(record.status),
-        recordingPath: record.recording_path || record.recording_url,
-        pbxCallId: record.call_id || record.id,
-      }));
+      const records: KerioCallRecord[] = response.data.map((record: any) => {
+        const state = this.mapKerioState(record.state || record.status);
+        return {
+          id: record.id || record.call_id,
+          direction: record.direction === 'inbound' ? 'inbound' : 'outbound',
+          fromNumber: record.from_number || record.caller_id,
+          toNumber: record.to_number || record.destination,
+          extension: record.extension,
+          startTime: new Date(record.start_time),
+          endTime: record.end_time ? new Date(record.end_time) : undefined,
+          duration: record.duration,
+          status: this.mapKerioStatus(record.status),
+          recordingPath: record.recording_path || record.recording_url,
+          pbxCallId: record.call_id || record.id,
+          state,
+        };
+      });
 
       this.logger.log(`Fetched ${records.length} call records from Kerio Operator`);
       return records;
@@ -251,6 +261,101 @@ export class KerioService {
   }
 
   /**
+   * Call state ni o'zbek tiliga o'zgartirish
+   */
+  private mapKerioState(state: string): 'kelyapti' | 'suhbatda' | 'yakunlandi' | 'javobsiz' {
+    const stateMap: Record<string, 'kelyapti' | 'suhbatda' | 'yakunlandi' | 'javobsiz'> = {
+      'ringing': 'kelyapti',
+      'ring': 'kelyapti',
+      'connected': 'suhbatda',
+      'answered': 'suhbatda',
+      'ended': 'yakunlandi',
+      'completed': 'yakunlandi',
+      'no_answer': 'javobsiz',
+      'missed': 'javobsiz',
+      'busy': 'javobsiz',
+    };
+
+    return stateMap[state?.toLowerCase()] || 'yakunlandi';
+  }
+
+  /**
+   * Faol qo'ng'iroqlarni polling qilish
+   */
+  async pollActiveCalls() {
+    try {
+      // Kerio Operator dan faol qo'ng'iroqlarni olish
+      // API endpoint: /api/rest/v1/calls/active yoki /api/rest/v1/calls/current
+      const response = await this.apiClient.get('/calls/active');
+
+      if (response.status !== 200) {
+        return;
+      }
+
+      const activeCalls: KerioCallRecord[] = response.data.map((call: any) => ({
+        id: call.id || call.call_id,
+        direction: call.direction === 'inbound' ? 'inbound' : 'outbound',
+        fromNumber: call.from_number || call.caller_id,
+        toNumber: call.to_number || call.destination,
+        extension: call.extension,
+        startTime: new Date(call.start_time),
+        state: this.mapKerioState(call.state || 'ringing'),
+        pbxCallId: call.call_id || call.id,
+      }));
+
+      // Yangi qo'ng'iroqlarni aniqlash
+      for (const call of activeCalls) {
+        if (!this.activeCalls.has(call.pbxCallId)) {
+          // Yangi qo'ng'iroq
+          this.activeCalls.set(call.pbxCallId, call);
+          
+          if (call.direction === 'inbound') {
+            // WebSocket orqali frontend ga yuborish
+            this.wsGateway.emitIncomingCall({
+              callId: call.pbxCallId,
+              fromNumber: call.fromNumber,
+              toNumber: call.toNumber,
+              direction: 'kiruvchi',
+              startTime: call.startTime.toISOString(),
+              state: call.state || 'kelyapti',
+            });
+          }
+        } else {
+          // Mavjud qo'ng'iroq - state o'zgarishini tekshirish
+          const existingCall = this.activeCalls.get(call.pbxCallId);
+          if (existingCall && existingCall.state !== call.state) {
+            existingCall.state = call.state;
+            
+            // State o'zgarishini frontend ga yuborish
+            this.wsGateway.emitCallStatus({
+              callId: call.pbxCallId,
+              state: call.state || 'yakunlandi',
+            });
+          }
+        }
+      }
+
+      // Tugagan qo'ng'iroqlarni aniqlash
+      const activeCallIds = new Set(activeCalls.map(c => c.pbxCallId));
+      for (const [callId, call] of this.activeCalls.entries()) {
+        if (!activeCallIds.has(callId)) {
+          // Qo'ng'iroq tugadi
+          call.state = 'yakunlandi';
+          this.activeCalls.delete(callId);
+          
+          // Frontend ga yuborish
+          this.wsGateway.emitCallStatus({
+            callId,
+            state: 'yakunlandi',
+          });
+        }
+      }
+    } catch (error: any) {
+      this.logger.error('Error polling active calls:', error.message);
+    }
+  }
+
+  /**
    * Avtomatik sync ni ishga tushirish
    */
   startAutoSync(intervalMinutes: number = 5) {
@@ -275,6 +380,41 @@ export class KerioService {
   }
 
   /**
+   * Real-time polling ni ishga tushirish
+   */
+  startPolling(intervalSeconds: number = 2) {
+    if (this.pollInterval) {
+      this.stopPolling();
+    }
+
+    this.logger.log(`Starting real-time polling every ${intervalSeconds} seconds`);
+
+    this.pollInterval = setInterval(async () => {
+      try {
+        await this.pollActiveCalls();
+      } catch (error: any) {
+        this.logger.error('Polling error:', error.message);
+      }
+    }, intervalSeconds * 1000);
+
+    // Dastlabki polling
+    this.pollActiveCalls().catch((error) => {
+      this.logger.error('Initial polling error:', error.message);
+    });
+  }
+
+  /**
+   * Real-time polling ni to'xtatish
+   */
+  stopPolling() {
+    if (this.pollInterval) {
+      clearInterval(this.pollInterval);
+      this.pollInterval = null;
+      this.logger.log('Real-time polling stopped');
+    }
+  }
+
+  /**
    * Avtomatik sync ni to'xtatish
    */
   stopAutoSync() {
@@ -283,6 +423,15 @@ export class KerioService {
       this.syncInterval = null;
       this.logger.log('Auto-sync stopped');
     }
+  }
+
+  /**
+   * Barcha servislarni to'xtatish
+   */
+  stopAll() {
+    this.stopAutoSync();
+    this.stopPolling();
+    this.activeCalls.clear();
   }
 }
 

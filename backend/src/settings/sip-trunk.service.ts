@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { PrismaService } from '../common/prisma/prisma.service';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -8,7 +9,10 @@ export class SipTrunkService {
   private readonly logger = new Logger(SipTrunkService.name);
   private readonly pjsipConfigPath: string;
 
-  constructor(private configService: ConfigService) {
+  constructor(
+    private configService: ConfigService,
+    private prisma: PrismaService,
+  ) {
     this.pjsipConfigPath = this.configService.get('ASTERISK_PJSIP_CONFIG') || '/etc/asterisk/pjsip.conf';
   }
 
@@ -21,6 +25,32 @@ export class SipTrunkService {
     transport?: 'udp' | 'tcp' | 'tls';
   }) {
     const config = this.generateTrunkConfig(data);
+    
+    // Database ga saqlash
+    try {
+      const trunk = await this.prisma.sipTrunk.upsert({
+        where: { name: data.name },
+        update: {
+          host: data.host,
+          username: data.username,
+          password: data.password,
+          port: data.port || 5060,
+          transport: data.transport || 'udp',
+        },
+        create: {
+          name: data.name,
+          host: data.host,
+          username: data.username,
+          password: data.password,
+          port: data.port || 5060,
+          transport: data.transport || 'udp',
+        },
+      });
+
+      this.logger.log(`SIP trunk database ga saqlandi: ${trunk.name}`);
+    } catch (error: any) {
+      this.logger.error('Database ga saqlashda xatolik:', error);
+    }
     
     // Config faylini yangilash
     try {
@@ -36,7 +66,7 @@ export class SipTrunkService {
       // Agar fayl yozib bo'lmasa, faqat konfiguratsiyani qaytarish
       return {
         success: true,
-        message: `SIP trunk konfiguratsiyasi yaratildi. Lekin pjsip.conf faylini qo'lda yangilash kerak: ${error.message}`,
+        message: `SIP trunk konfiguratsiyasi yaratildi va database ga saqlandi. Lekin pjsip.conf faylini qo'lda yangilash kerak: ${error.message}`,
         config: config,
         manual: true,
       };
@@ -203,14 +233,33 @@ match = ${data.host}
   }
 
   async getTrunks() {
-    // Mavjud trunklarni olish (agar config faylini o'qib bo'lsa)
+    // Database dan trunklarni olish
     try {
-      if (fs.existsSync(this.pjsipConfigPath)) {
-        const config = fs.readFileSync(this.pjsipConfigPath, 'utf-8');
-        return this.parseTrunks(config);
-      }
+      const trunks = await this.prisma.sipTrunk.findMany({
+        orderBy: { createdAt: 'desc' },
+      });
+
+      // Password ni yashirish
+      return trunks.map(trunk => ({
+        name: trunk.name,
+        host: trunk.host,
+        username: trunk.username,
+        password: '••••••••', // Password yashiriladi
+        port: trunk.port,
+        transport: trunk.transport,
+      }));
     } catch (error) {
-      this.logger.warn('PJSIP config o\'qib bo\'lmadi:', error);
+      this.logger.warn('Database dan trunklar o\'qib bo\'lmadi:', error);
+      
+      // Fallback: Config faylidan o'qish
+      try {
+        if (fs.existsSync(this.pjsipConfigPath)) {
+          const config = fs.readFileSync(this.pjsipConfigPath, 'utf-8');
+          return this.parseTrunks(config);
+        }
+      } catch (configError) {
+        this.logger.warn('PJSIP config o\'qib bo\'lmadi:', configError);
+      }
     }
     return [];
   }

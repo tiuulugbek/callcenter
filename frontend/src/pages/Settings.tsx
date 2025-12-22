@@ -167,20 +167,23 @@ const Settings = () => {
     setMessage(null)
     try {
       const result = await settingsApi.createSipTrunk(newTrunk)
-      setMessage({
-        type: 'success',
-        text: result.manual
-          ? `SIP trunk konfiguratsiyasi yaratildi. Lekin pjsip.conf faylini qo'lda yangilash kerak: ${result.message || 'Ruxsat muammosi'}`
-          : 'SIP trunk muvaffaqiyatli yaratildi va Asterisk reload qilindi',
-      })
-      if (result.config && result.manual) {
+      
+      // Trunklar ro'yxatini yangilash
+      await loadSipTrunks()
+      
+      if (result.manual) {
         // Agar manual bo'lsa, konfiguratsiyani ko'rsatish
-        console.log('Trunk Config:', result.config)
         setMessage({
           type: 'success',
-          text: `SIP trunk konfiguratsiyasi yaratildi. Quyidagi konfiguratsiyani /etc/asterisk/pjsip.conf fayliga qo'shing:\n\n${result.config}`,
+          text: `SIP trunk muvaffaqiyatli yaratildi va saqlandi. Lekin pjsip.conf faylini qo'lda yangilash kerak. Quyidagi konfiguratsiyani /etc/asterisk/pjsip.conf fayliga qo'shing:\n\n${result.config || ''}`,
+        })
+      } else {
+        setMessage({
+          type: 'success',
+          text: 'SIP trunk muvaffaqiyatli yaratildi, saqlandi va Asterisk reload qilindi',
         })
       }
+      
       setNewTrunk({
         name: '',
         host: '',
@@ -189,7 +192,6 @@ const Settings = () => {
         port: 5060,
         transport: 'udp',
       })
-      loadSipTrunks()
     } catch (error: any) {
       setMessage({ type: 'error', text: error.message || 'Xatolik yuz berdi' })
     } finally {

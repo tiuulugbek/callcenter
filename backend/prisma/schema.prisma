@@ -90,3 +90,17 @@ model Contact {
   @@map("contacts")
 }
 
+model SipTrunk {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  host        String
+  username    String
+  password    String
+  port        Int      @default(5060)
+  transport   String   @default("udp") // udp, tcp, tls
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("sip_trunks")
+}
+

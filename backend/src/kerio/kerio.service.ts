@@ -36,8 +36,12 @@ export class KerioService {
     this.apiUsername = this.configService.get('KERIO_API_USERNAME') || '';
     this.apiPassword = this.configService.get('KERIO_API_PASSWORD') || '';
 
+    // Kerio Operator API - haqiqiy endpoint larni tekshirish kerak
+    // Kerio Operator odatda REST API yoki SOAP API ishlatadi
+    // Misol: https://pbx.example.com/api/rest/v1/ yoki https://pbx.example.com/api/soap/
+    
     this.apiClient = axios.create({
-      baseURL: `https://${this.pbxHost}/api/v1`,
+      baseURL: `https://${this.pbxHost}/api/rest/v1`, // Kerio Operator REST API endpoint
       timeout: 30000,
       auth: {
         username: this.apiUsername,
@@ -46,6 +50,7 @@ export class KerioService {
       headers: {
         'Content-Type': 'application/json',
       },
+      validateStatus: () => true, // Barcha status kodlarni qabul qilish
     });
 
     this.logger.log(`Kerio Operator service initialized for ${this.pbxHost}`);
@@ -56,12 +61,35 @@ export class KerioService {
    */
   async authenticate(): Promise<boolean> {
     try {
-      // Kerio Operator API endpoint (misol)
-      const response = await this.apiClient.get('/auth/verify');
-      this.logger.log('Kerio Operator authentication successful');
-      return true;
+      // Kerio Operator API endpoint lari haqiqiy API ga moslashtirish kerak
+      // Variant 1: REST API
+      // const response = await this.apiClient.get('/auth/verify');
+      
+      // Variant 2: SOAP API
+      // const response = await this.apiClient.post('/soap', { ... });
+      
+      // Variant 3: CDR endpoint orqali tekshirish
+      const response = await this.apiClient.get('/calls/cdr', {
+        params: {
+          limit: 1,
+        },
+      });
+
+      if (response.status === 200 || response.status === 401) {
+        // 401 bo'lsa, credentials noto'g'ri
+        if (response.status === 401) {
+          this.logger.warn('Kerio Operator authentication failed: Invalid credentials');
+          return false;
+        }
+        this.logger.log('Kerio Operator authentication successful');
+        return true;
+      }
+
+      this.logger.warn(`Kerio Operator API returned status ${response.status}`);
+      return false;
     } catch (error: any) {
-      this.logger.error('Kerio Operator authentication failed:', error.message);
+      this.logger.error('Kerio Operator authentication error:', error.message);
+      // Network xatolik bo'lsa ham false qaytarish
       return false;
     }
   }
@@ -87,10 +115,16 @@ export class KerioService {
         queryParams.extension = params.extension;
       }
 
-      // Kerio Operator CDR API endpoint (misol)
+      // Kerio Operator CDR API endpoint
+      // Haqiqiy API endpoint ni tekshirish kerak
+      // Misol: /api/rest/v1/calls/cdr yoki /api/soap/cdr
       const response = await this.apiClient.get('/calls/cdr', {
         params: queryParams,
       });
+
+      if (response.status !== 200) {
+        throw new Error(`Kerio Operator API error: ${response.status} - ${response.statusText}`);
+      }
 
       const records: KerioCallRecord[] = response.data.map((record: any) => ({
         id: record.id || record.call_id,

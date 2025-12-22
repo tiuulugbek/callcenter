@@ -47,9 +47,19 @@ const Settings = () => {
     try {
       const result = await kerioApi.verifyAuth()
       setKerioConnected(result.authenticated)
-    } catch (error) {
+      if (!result.authenticated) {
+        setMessage({
+          type: 'warning',
+          text: 'Kerio Operator ga ulanib bo\'lmadi. Backend .env faylida KERIO_API_USERNAME va KERIO_API_PASSWORD ni tekshiring.',
+        })
+      }
+    } catch (error: any) {
       console.error('Kerio connection check error:', error)
       setKerioConnected(false)
+      setMessage({
+        type: 'error',
+        text: `Kerio Operator ga ulanib bo'lmadi: ${error.message || 'Noma\'lum xatolik'}`,
+      })
     }
   }
 

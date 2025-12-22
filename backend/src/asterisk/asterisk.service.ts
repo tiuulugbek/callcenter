@@ -57,15 +57,19 @@ export class AsteriskService {
     const channelId = event.channel.id;
     const callId = event.args?.[0] || event.channel.id;
     const direction = event.args?.[1] || 'kiruvchi';
-    const fromNumber = event.channel.caller.number || event.channel.caller.name;
-    const toNumber = event.channel.dialplan.exten || event.channel.connected.number;
+    const fromNumber = event.args?.[2] || event.channel.caller?.number || event.channel.caller?.name || 'Noma\'lum';
+    const toNumber = event.args?.[3] || event.channel.dialplan?.exten || event.channel.connected?.number || 'Noma\'lum';
 
-    this.logger.log(`StasisStart: ${channelId}, CallId: ${callId}, Direction: ${direction}`);
+    this.logger.log(`StasisStart: ${channelId}, CallId: ${callId}, Direction: ${direction}, From: ${fromNumber}, To: ${toNumber}`);
+    this.logger.log(`Event args: ${JSON.stringify(event.args)}`);
+    this.logger.log(`Channel caller: ${JSON.stringify(event.channel.caller)}`);
+    this.logger.log(`Channel dialplan: ${JSON.stringify(event.channel.dialplan)}`);
 
     // Answer the channel
     try {
       const ari = this.getAriClient();
       await ari.post(`/channels/${channelId}/answer`);
+      this.logger.log(`Channel ${channelId} answered`);
       
       // Start recording
       await ari.post(`/channels/${channelId}/record`, {
@@ -73,30 +77,40 @@ export class AsteriskService {
         format: 'wav',
         maxDurationSeconds: 3600,
       });
-    } catch (error) {
-      this.logger.error('Error handling StasisStart:', error);
+      this.logger.log(`Recording started for ${channelId}`);
+    } catch (error: any) {
+      this.logger.error('Error handling StasisStart:', error.message || error);
     }
 
     // Create call record via injected service
     if (callsService) {
-      const call = await callsService.create({
-        direction,
-        fromNumber,
-        toNumber,
-        callId,
-        recordingPath: `/var/spool/asterisk/recordings/call_${callId}.wav`,
-      });
+      try {
+        const call = await callsService.create({
+          direction,
+          fromNumber,
+          toNumber,
+          callId,
+          recordingPath: `/var/spool/asterisk/recordings/call_${callId}.wav`,
+        });
 
-      // Emit WebSocket event
-      this.wsGateway.emitIncomingCall({
-        callId: call.id,
-        fromNumber,
-        toNumber,
-        direction,
-        startTime: call.startTime,
-      });
+        this.logger.log(`Call record created: ${call.id}`);
 
-      return call;
+        // Emit WebSocket event
+        this.wsGateway.emitIncomingCall({
+          callId: call.id,
+          fromNumber,
+          toNumber,
+          direction,
+          startTime: call.startTime,
+        });
+
+        return call;
+      } catch (error: any) {
+        this.logger.error('Error creating call record:', error.message || error);
+        throw error;
+      }
+    } else {
+      this.logger.error('CallsService not available');
     }
   }
 
@@ -113,16 +127,36 @@ export class AsteriskService {
     });
   }
 
-  async handleChannelDestroyed(event: any) {
+  async handleChannelDestroyed(event: any, callsService: any) {
     const channelId = event.channel.id;
-    const callId = event.channel.id; // You might need to store mapping
+    const callId = event.channel.id;
 
-    this.logger.log(`ChannelDestroyed: ${channelId}`);
+    this.logger.log(`ChannelDestroyed: ${channelId}, CallId: ${callId}`);
 
     // Update call record
-    const endTime = new Date();
-    // You'll need to find the call by callId or channelId
-    // This is simplified - you might need to store channel->callId mapping
+    if (callsService) {
+      try {
+        const endTime = new Date();
+        const call = await callsService.updateByCallId(callId, {
+          endTime,
+          status: 'tugadi',
+        });
+
+        if (call) {
+          // Calculate duration
+          const duration = Math.floor((endTime.getTime() - call.startTime.getTime()) / 1000);
+          await callsService.update(call.id, {
+            duration,
+          });
+
+          this.logger.log(`Call record updated: ${call.id}, Duration: ${duration}s`);
+        } else {
+          this.logger.warn(`Call record not found for callId: ${callId}`);
+        }
+      } catch (error: any) {
+        this.logger.error('Error updating call record:', error.message || error);
+      }
+    }
     
     this.wsGateway.emitCallStatus({
       channelId,

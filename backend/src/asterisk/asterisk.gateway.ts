@@ -100,7 +100,7 @@ export class AsteriskGateway implements OnModuleInit {
         await this.asteriskService.handleChannelStateChange(event);
         break;
       case 'ChannelDestroyed':
-        await this.asteriskService.handleChannelDestroyed(event);
+        await this.asteriskService.handleChannelDestroyed(event, this.callsService);
         break;
       default:
         // Other events can be handled here

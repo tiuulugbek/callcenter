@@ -6,7 +6,7 @@ import './Settings.css'
 const Settings = () => {
   const [activeTab, setActiveTab] = useState<'sip' | 'trunk' | 'telegram' | 'facebook'>('sip')
   const [loading, setLoading] = useState(false)
-  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+  const [message, setMessage] = useState<{ type: 'success' | 'error' | 'warning'; text: string } | null>(null)
 
   // SIP Settings
   const [sipExtensions, setSipExtensions] = useState<any[]>([])
@@ -207,8 +207,10 @@ const Settings = () => {
         <h1>Sozlamalar</h1>
 
         {message && (
-          <div className={`alert alert-${message.type}`}>
-            {message.text}
+          <div className={`alert alert-${message.type === 'warning' ? 'warning' : message.type}`}>
+            {message.text.split('\n').map((line, i) => (
+              <div key={i}>{line}</div>
+            ))}
           </div>
         )}
 

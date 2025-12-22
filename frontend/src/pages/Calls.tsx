@@ -30,9 +30,15 @@ const Calls = () => {
     try {
       setLoading(true)
       const data = await callsApi.getAll({ startDate, endDate })
-      setCalls(data)
+      // Array tekshiruvi
+      if (data && Array.isArray(data)) {
+        setCalls(data)
+      } else {
+        setCalls([])
+      }
     } catch (error) {
       console.error('Error loading calls:', error)
+      setCalls([])
     } finally {
       setLoading(false)
     }

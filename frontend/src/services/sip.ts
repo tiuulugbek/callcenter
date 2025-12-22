@@ -116,9 +116,21 @@ class SipService extends EventEmitter {
 
       this.socket.start();
       
+      // Timeout - agar 10 soniyada ulanmasa, xatolik
+      setTimeout(() => {
+        if (!this.registered) {
+          console.warn('SIP registration timeout');
+          this.emit('registrationFailed', { 
+            message: 'Connection timeout. Kerio Control WebSocket qo\'llab-quvvatlamaydi.',
+            cause: 'TIMEOUT'
+          });
+        }
+      }, 10000);
+      
       return { success: true };
     } catch (error: any) {
       console.error('SIP initialization error:', error);
+      this.emit('registrationFailed', error);
       return { success: false, error: error.message };
     }
   }

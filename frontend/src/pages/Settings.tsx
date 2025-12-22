@@ -54,20 +54,36 @@ const Settings = () => {
   const loadSipExtensions = async () => {
     try {
       const extensions = await settingsApi.getSipExtensions()
-      setSipExtensions(extensions)
-      // Agar operatorlar bo'sh bo'lsa, operatorlar ro'yxatini yuklash
-      if (extensions.length === 0) {
-        const operators = await operatorsApi.getAll()
-        setSipExtensions(operators)
+      // Array tekshiruvi
+      if (extensions && Array.isArray(extensions)) {
+        setSipExtensions(extensions)
+        // Agar operatorlar bo'sh bo'lsa, operatorlar ro'yxatini yuklash
+        if (extensions.length === 0) {
+          try {
+            const operators = await operatorsApi.getAll()
+            if (operators && Array.isArray(operators)) {
+              setSipExtensions(operators)
+            }
+          } catch (err) {
+            console.error('Operatorlar yuklashda xatolik:', err)
+          }
+        }
+      } else {
+        setSipExtensions([])
       }
     } catch (error) {
       console.error('SIP extensionlar yuklashda xatolik:', error)
       // Xatolik bo'lsa ham operatorlarni yuklashga harakat qilish
       try {
         const operators = await operatorsApi.getAll()
-        setSipExtensions(operators)
+        if (operators && Array.isArray(operators)) {
+          setSipExtensions(operators)
+        } else {
+          setSipExtensions([])
+        }
       } catch (err) {
         console.error('Operatorlar yuklashda xatolik:', err)
+        setSipExtensions([])
       }
     }
   }
@@ -133,9 +149,15 @@ const Settings = () => {
   const loadSipTrunks = async () => {
     try {
       const trunks = await settingsApi.getSipTrunks()
-      setSipTrunks(trunks)
+      // Array tekshiruvi
+      if (trunks && Array.isArray(trunks)) {
+        setSipTrunks(trunks)
+      } else {
+        setSipTrunks([])
+      }
     } catch (error) {
       console.error('SIP trunklar yuklashda xatolik:', error)
+      setSipTrunks([])
     }
   }
 

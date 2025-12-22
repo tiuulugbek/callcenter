@@ -1,0 +1,72 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Operator {
+  id        String   @id @default(uuid())
+  name      String
+  extension String   @unique
+  status    String   @default("oflayn") // onlayn, oflayn
+  username  String   @unique
+  password  String
+  role      String   @default("operator") // operator, admin
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  calls Call[]
+}
+
+model Call {
+  id            String   @id @default(uuid())
+  direction     String   // kiruvchi, chiquvchi
+  fromNumber    String   @map("from_number")
+  toNumber      String   @map("to_number")
+  startTime     DateTime @default(now()) @map("start_time")
+  endTime       DateTime? @map("end_time")
+  duration      Int      @default(0) // seconds
+  recordingPath String?  @map("recording_path")
+  status        String   @default("yakunlandi") // yakunlandi, javobsiz
+  callId        String?  @unique @map("call_id")
+  operatorId    String?  @map("operator_id")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  operator Operator? @relation(fields: [operatorId], references: [id])
+
+  @@map("calls")
+}
+
+model Chat {
+  id             String   @id @default(uuid())
+  channel        String   // telegram, instagram, facebook
+  externalUserId String   @map("external_user_id")
+  userName       String?  @map("user_name")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  messages Message[]
+
+  @@unique([channel, externalUserId])
+  @@map("chats")
+}
+
+model Message {
+  id        String   @id @default(uuid())
+  chatId    String   @map("chat_id")
+  sender    String   // mijoz, operator
+  message   String   @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+
+  chat Chat @relation(fields: [chatId], references: [id], onDelete: Cascade)
+
+  @@map("messages")
+}
+

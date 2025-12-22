@@ -1,0 +1,114 @@
+.calls-page h1 {
+  margin-bottom: 2rem;
+  color: #2c3e50;
+}
+
+.filters {
+  background: white;
+  padding: 1.5rem;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  margin-bottom: 2rem;
+  display: flex;
+  gap: 1rem;
+  align-items: flex-end;
+}
+
+.filter-group {
+  flex: 1;
+}
+
+.filter-group label {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: #555;
+  font-weight: 500;
+}
+
+.filter-group input {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 1rem;
+}
+
+.filters button {
+  padding: 0.75rem 1.5rem;
+  background-color: #3498db;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: background-color 0.3s;
+  height: fit-content;
+}
+
+.filters button:hover {
+  background-color: #2980b9;
+}
+
+.calls-table {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  overflow-x: auto;
+}
+
+.calls-table table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.calls-table th {
+  background-color: #f8f9fa;
+  padding: 1rem;
+  text-align: left;
+  font-weight: 600;
+  color: #2c3e50;
+  border-bottom: 2px solid #dee2e6;
+}
+
+.calls-table td {
+  padding: 1rem;
+  border-bottom: 1px solid #dee2e6;
+  color: #555;
+}
+
+.calls-table tr:hover {
+  background-color: #f8f9fa;
+}
+
+.status-badge {
+  padding: 0.25rem 0.75rem;
+  border-radius: 12px;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.status-yakunlandi {
+  background-color: #d4edda;
+  color: #155724;
+}
+
+.status-javobsiz {
+  background-color: #f8d7da;
+  color: #721c24;
+}
+
+.btn-play {
+  padding: 0.5rem 1rem;
+  background-color: #3498db;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  transition: background-color 0.3s;
+}
+
+.btn-play:hover {
+  background-color: #2980b9;
+}
+

@@ -27,15 +27,16 @@ export class SipTrunkService {
       await this.updatePjsipConfig(data.name, config);
       return {
         success: true,
-        message: 'SIP trunk konfiguratsiyasi yaratildi',
+        message: 'SIP trunk muvaffaqiyatli yaratildi va pjsip.conf fayli yangilandi',
         config: config,
+        manual: false,
       };
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error('PJSIP config yangilashda xatolik:', error);
       // Agar fayl yozib bo'lmasa, faqat konfiguratsiyani qaytarish
       return {
         success: true,
-        message: 'SIP trunk konfiguratsiyasi yaratildi. Iltimos, pjsip.conf faylini qo\'lda yangilang.',
+        message: `SIP trunk konfiguratsiyasi yaratildi. Lekin pjsip.conf faylini qo'lda yangilash kerak: ${error.message}`,
         config: config,
         manual: true,
       };
@@ -52,22 +53,19 @@ export class SipTrunkService {
   }): string {
     const port = data.port || 5060;
     const transport = data.transport || 'udp';
-    const transportName = `${data.name}-transport`;
+    // Mavjud transport dan foydalanish (transport-udp, transport-tcp)
+    const transportName = transport === 'udp' ? 'transport-udp' : transport === 'tcp' ? 'transport-tcp' : 'transport-udp';
 
     return `
 ; SIP Trunk: ${data.name}
-; Generated automatically
-
-[${transportName}]
-type = transport
-protocol = ${transport}
-bind = 0.0.0.0
+; Generated automatically - ${new Date().toISOString()}
 
 [${data.name}]
 type = aor
 contact = sip:${data.username}@${data.host}:${port}
+qualify_frequency = 60
 
-[${data.name}](!)
+[${data.name}]
 type = endpoint
 context = from-external
 disallow = all
@@ -75,9 +73,15 @@ allow = ulaw
 allow = alaw
 allow = g729
 direct_media = no
+transport = ${transportName}
 aors = ${data.name}
 auth = ${data.name}-auth
 outbound_auth = ${data.name}-auth
+rtp_symmetric = yes
+force_rport = yes
+rewrite_contact = yes
+trust_id_inbound = yes
+send_rpid = yes
 
 [${data.name}-auth]
 type = auth
@@ -85,7 +89,7 @@ auth_type = userpass
 username = ${data.username}
 password = ${data.password}
 
-[${data.name}](!)
+[${data.name}-identify]
 type = identify
 endpoint = ${data.name}
 match = ${data.host}
@@ -93,8 +97,6 @@ match = ${data.host}
   }
 
   private async updatePjsipConfig(trunkName: string, config: string): Promise<void> {
-    // Agar fayl yozib bo'lmasa, faqat konfiguratsiyani qaytarish
-    // Production da bu faylni yozish uchun kerakli ruxsatlar bo'lishi kerak
     const configDir = path.dirname(this.pjsipConfigPath);
     
     if (!fs.existsSync(configDir)) {
@@ -104,7 +106,12 @@ match = ${data.host}
     // Backup yaratish
     const backupPath = `${this.pjsipConfigPath}.backup.${Date.now()}`;
     if (fs.existsSync(this.pjsipConfigPath)) {
-      fs.copyFileSync(this.pjsipConfigPath, backupPath);
+      try {
+        fs.copyFileSync(this.pjsipConfigPath, backupPath);
+        this.logger.log(`Backup yaratildi: ${backupPath}`);
+      } catch (error) {
+        this.logger.warn('Backup yaratishda xatolik:', error);
+      }
     }
 
     // Yangi konfiguratsiyani qo'shish
@@ -116,27 +123,60 @@ match = ${data.host}
     const cleanedConfig = this.removeTrunkConfig(existingConfig, trunkName);
 
     // Yangi konfiguratsiyani qo'shish
-    const newConfig = cleanedConfig + '\n' + config;
+    const newConfig = cleanedConfig.trim() + '\n' + config.trim() + '\n';
 
-    fs.writeFileSync(this.pjsipConfigPath, newConfig, 'utf-8');
-    this.logger.log(`PJSIP config yangilandi: ${this.pjsipConfigPath}`);
+    try {
+      // Fayl yozishga harakat qilish
+      fs.writeFileSync(this.pjsipConfigPath, newConfig, 'utf-8');
+      this.logger.log(`PJSIP config yangilandi: ${this.pjsipConfigPath}`);
+      
+      // Asterisk ni reload qilish (agar mumkin bo'lsa)
+      try {
+        const { exec } = require('child_process');
+        exec('asterisk -rx "pjsip reload"', (error: any) => {
+          if (error) {
+            this.logger.warn('Asterisk reload xatosi:', error);
+          } else {
+            this.logger.log('Asterisk PJSIP reload qilindi');
+          }
+        });
+      } catch (error) {
+        this.logger.warn('Asterisk reload qilishda xatolik:', error);
+      }
+    } catch (error: any) {
+      this.logger.error('PJSIP config yozishda xatolik:', error);
+      throw new Error(`Fayl yozib bo'lmadi: ${error.message}. Iltimos, ruxsatlarni tekshiring.`);
+    }
   }
 
   private removeTrunkConfig(config: string, trunkName: string): string {
-    // Trunk konfiguratsiyasini olib tashlash
+    // Trunk konfiguratsiyasini olib tashlash (name, name-auth, name-identify, name-transport)
     const lines = config.split('\n');
     const newLines: string[] = [];
     let skipSection = false;
     let sectionDepth = 0;
+    const sectionsToRemove = [
+      trunkName,
+      `${trunkName}-auth`,
+      `${trunkName}-identify`,
+      `${trunkName}-transport`,
+    ];
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i].trim();
 
       // Section boshlanishi
-      if (line.startsWith('[') && line.includes(trunkName)) {
-        skipSection = true;
-        sectionDepth = 1;
-        continue;
+      if (line.startsWith('[')) {
+        const sectionName = line.replace(/[\[\]]/g, '').split('(')[0];
+        
+        if (sectionsToRemove.includes(sectionName)) {
+          skipSection = true;
+          sectionDepth = 1;
+          continue;
+        } else {
+          skipSection = false;
+          sectionDepth = 0;
+        }
       }
 
       // Section ichida
@@ -144,6 +184,7 @@ match = ${data.host}
         if (line.startsWith('[')) {
           sectionDepth++;
         }
+        // Bo'sh qator va sectionDepth 1 bo'lsa, section tugadi
         if (line === '' && sectionDepth === 1) {
           skipSection = false;
           sectionDepth = 0;

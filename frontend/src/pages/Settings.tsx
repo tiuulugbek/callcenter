@@ -160,7 +160,7 @@ const Settings = () => {
 
   const handleCreateSipTrunk = async () => {
     if (!newTrunk.name || !newTrunk.host || !newTrunk.username || !newTrunk.password) {
-      setMessage({ type: 'error', text: 'Barcha maydonlarni to\'ldiring' })
+      setMessage({ type: 'error', text: 'Barcha maydonlarni to\'ldiring (Nomi, Server IP, Username, Password)' })
       return
     }
     setLoading(true)
@@ -170,11 +170,16 @@ const Settings = () => {
       setMessage({
         type: 'success',
         text: result.manual
-          ? 'SIP trunk konfiguratsiyasi yaratildi. pjsip.conf faylini qo\'lda yangilang.'
-          : 'SIP trunk muvaffaqiyatli yaratildi',
+          ? `SIP trunk konfiguratsiyasi yaratildi. Lekin pjsip.conf faylini qo'lda yangilash kerak: ${result.message || 'Ruxsat muammosi'}`
+          : 'SIP trunk muvaffaqiyatli yaratildi va Asterisk reload qilindi',
       })
-      if (result.config) {
+      if (result.config && result.manual) {
+        // Agar manual bo'lsa, konfiguratsiyani ko'rsatish
         console.log('Trunk Config:', result.config)
+        setMessage({
+          type: 'success',
+          text: `SIP trunk konfiguratsiyasi yaratildi. Quyidagi konfiguratsiyani /etc/asterisk/pjsip.conf fayliga qo'shing:\n\n${result.config}`,
+        })
       }
       setNewTrunk({
         name: '',

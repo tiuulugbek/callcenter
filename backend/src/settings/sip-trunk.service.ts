@@ -138,8 +138,36 @@ match = ${data.host}
   private async updatePjsipConfig(trunkName: string, config: string): Promise<void> {
     const configDir = path.dirname(this.pjsipConfigPath);
     
+    // Config papkasini tekshirish va yaratish
     if (!fs.existsSync(configDir)) {
-      throw new Error(`Config directory not found: ${configDir}`);
+      this.logger.warn(`Config directory not found: ${configDir}. Yaratishga harakat qilmoqda...`);
+      try {
+        // Sudo orqali papka yaratishga harakat qilish
+        const { execSync } = require('child_process');
+        execSync(`sudo mkdir -p ${configDir}`, { stdio: 'inherit' });
+        execSync(`sudo chown asterisk:asterisk ${configDir}`, { stdio: 'inherit' });
+        execSync(`sudo chmod 775 ${configDir}`, { stdio: 'inherit' });
+        this.logger.log(`Config directory yaratildi: ${configDir}`);
+      } catch (mkdirError: any) {
+        this.logger.error(`Config directory yaratib bo'lmadi: ${mkdirError.message}`);
+        throw new Error(`Config directory not found: ${configDir}. Iltimos, papkani yarating: sudo mkdir -p ${configDir} && sudo chown asterisk:asterisk ${configDir} && sudo chmod 775 ${configDir}`);
+      }
+    }
+    
+    // Config papkasiga kirish huquqini tekshirish
+    try {
+      fs.accessSync(configDir, fs.constants.W_OK);
+    } catch (accessError) {
+      this.logger.warn(`Config directory ga yozish huquqi yo'q: ${configDir}`);
+      // Sudo orqali permissions ni sozlashga harakat qilish
+      try {
+        const { execSync } = require('child_process');
+        execSync(`sudo chmod 775 ${configDir}`, { stdio: 'inherit' });
+        this.logger.log(`Config directory permissions sozlandi: ${configDir}`);
+      } catch (chmodError: any) {
+        this.logger.error(`Permissions sozlab bo'lmadi: ${chmodError.message}`);
+        throw new Error(`Config directory ga yozish huquqi yo'q: ${configDir}. Iltimos, permissions ni sozlang: sudo chmod 775 ${configDir}`);
+      }
     }
 
     // Backup yaratish

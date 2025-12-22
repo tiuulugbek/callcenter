@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import Layout from '../components/Layout'
 import { wsService } from '../services/websocket'
 import Phone from '../components/Phone'
-import { api } from '../services/api'
+import api, { settingsApi } from '../services/api'
 import './Dashboard.css'
 
 interface IncomingCall {
@@ -32,9 +32,9 @@ const Dashboard = () => {
         if (!token) return
 
         // Settings dan SIP extension ma'lumotlarini olish
-        const response = await api.get('/settings/sip-extensions')
-        if (response.data && response.data.length > 0) {
-          const extension = response.data[0]
+        const extensions = await settingsApi.getSipExtensions()
+        if (extensions && extensions.length > 0) {
+          const extension = extensions[0]
           // Password ni localStorage dan olish yoki so'ralishi kerak
           const storedPassword = localStorage.getItem('sip_password')
           if (extension.extension && storedPassword) {

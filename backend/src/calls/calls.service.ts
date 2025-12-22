@@ -56,6 +56,10 @@ export class CallsService {
     toNumber: string;
     callId: string;
     recordingPath?: string;
+    startTime?: Date;
+    endTime?: Date;
+    duration?: number;
+    status?: string;
   }) {
     return this.prisma.call.create({
       data,

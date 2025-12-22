@@ -158,7 +158,6 @@ export class KerioService {
       'no_answer': 'no_answer',
       'busy': 'busy',
       'failed': 'failed',
-      'failed': 'failed',
     };
 
     return statusMap[status.toLowerCase()] || 'failed';
@@ -215,11 +214,11 @@ export class KerioService {
               fromNumber: record.fromNumber,
               toNumber: record.toNumber,
               callId: record.pbxCallId,
+              recordingPath: record.recordingPath,
               startTime: record.startTime,
               endTime: record.endTime,
               duration: record.duration,
               status: this.mapStatusToUzbek(record.status),
-              recordingPath: record.recordingPath,
             });
 
             syncedCount++;

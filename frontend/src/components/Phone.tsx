@@ -26,9 +26,21 @@ const Phone = ({ config }: PhoneProps) => {
       setStatus('Connected');
     });
 
-    sipService.on('registrationFailed', () => {
+    sipService.on('registrationFailed', (error: any) => {
       setRegistered(false);
-      setStatus('Connection Failed');
+      const errorMsg = error?.message || error?.cause || 'Connection Failed';
+      setStatus(`Connection Failed: ${errorMsg}`);
+      console.error('SIP registration failed:', error);
+    });
+
+    sipService.on('disconnected', () => {
+      setRegistered(false);
+      setStatus('Disconnected');
+    });
+
+    sipService.on('unregistered', () => {
+      setRegistered(false);
+      setStatus('Unregistered');
     });
 
     sipService.on('incomingCall', (call: CallState) => {

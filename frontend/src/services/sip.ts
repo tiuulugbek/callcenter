@@ -39,14 +39,22 @@ class SipService extends EventEmitter {
       // JSSIP ni dynamic import qilish
       const JSSIP = await import('jssip');
       
-      // Kerio Control WebSocket yoki UDP transport
-      // Agar WebSocket mavjud bo'lmasa, UDP ishlatish kerak
-      // Lekin browser da UDP ishlamaydi, shuning uchun WebSocket kerak
-      // Kerio Control WebSocket port: 8089 yoki 5061 (WSS)
-      const wsUrl = `wss://${config.server}:8089/ws`;
+      // Kerio Control WebSocket URL
+      // Kerio Control odatda WebSocket qo'llab-quvvatlamaydi
+      // Shuning uchun Asterisk WebRTC gateway kerak yoki SIP over WebSocket proxy
+      // Hozircha test uchun bir nechta variant sinab ko'ramiz
       
-      // Agar WebSocket ishlamasa, SIP over WebSocket proxy kerak
-      // Yoki Asterisk WebRTC gateway kerak
+      // Variant 1: WSS (WebSocket Secure)
+      let wsUrl = `wss://${config.server}:8089/ws`;
+      
+      // Agar ishlamasa, Variant 2: WS (WebSocket)
+      // wsUrl = `ws://${config.server}:8089/ws`;
+      
+      // Agar ishlamasa, Variant 3: Asterisk WebRTC gateway orqali
+      // wsUrl = `wss://152.53.229.176:8088/ari/events`;
+      
+      console.log('SIP connecting to:', wsUrl);
+      
       const socket = new JSSIP.WebSocketInterface(wsUrl);
       
       this.socket = new JSSIP.UA({
@@ -61,13 +69,38 @@ class SipService extends EventEmitter {
       this.socket.on('registered', () => {
         this.registered = true;
         this.emit('registered');
-        console.log('SIP registered');
+        console.log('SIP registered successfully');
       });
 
       this.socket.on('registrationFailed', (e: any) => {
         this.registered = false;
         this.emit('registrationFailed', e);
         console.error('SIP registration failed:', e);
+        console.error('Error details:', {
+          cause: e.cause,
+          message: e.message,
+          status_code: e.status_code,
+        });
+      });
+
+      this.socket.on('unregistered', () => {
+        this.registered = false;
+        this.emit('unregistered');
+        console.log('SIP unregistered');
+      });
+
+      this.socket.on('registrationExpiring', () => {
+        console.log('SIP registration expiring');
+      });
+
+      this.socket.on('connected', () => {
+        console.log('SIP connected');
+      });
+
+      this.socket.on('disconnected', (e: any) => {
+        this.registered = false;
+        this.emit('disconnected');
+        console.error('SIP disconnected:', e);
       });
 
       this.socket.on('newRTCSession', (e: any) => {

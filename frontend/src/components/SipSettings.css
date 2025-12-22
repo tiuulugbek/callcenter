@@ -56,3 +56,23 @@
   background-color: #229954;
 }
 
+.warning-box {
+  background: #fff3cd;
+  border: 1px solid #ffeaa7;
+  border-radius: 4px;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.warning-box strong {
+  color: #856404;
+  display: block;
+  margin-bottom: 0.5rem;
+}
+
+.warning-box p {
+  color: #856404;
+  margin: 0.5rem 0;
+  font-size: 0.9rem;
+}
+

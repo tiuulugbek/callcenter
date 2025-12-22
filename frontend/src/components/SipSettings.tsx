@@ -12,10 +12,10 @@ interface SipSettingsProps {
 
 const SipSettings = ({ onSave }: SipSettingsProps) => {
   const [config, setConfig] = useState({
-    server: localStorage.getItem('sip_server') || '152.53.229.176',
+    server: localStorage.getItem('sip_server') || '90.156.199.92',
     username: localStorage.getItem('sip_username') || '',
     password: localStorage.getItem('sip_password') || '',
-    domain: localStorage.getItem('sip_domain') || '152.53.229.176',
+    domain: localStorage.getItem('sip_domain') || '90.156.199.92',
   });
 
   const handleSave = () => {
@@ -41,13 +41,19 @@ const SipSettings = ({ onSave }: SipSettingsProps) => {
         Kerio Operatordan kelgan qo'ng'iroqlarni qabul qilish uchun MicroSIP ma'lumotlarini kiriting.
       </p>
       
+      <div className="warning-box">
+        <strong>⚠️ Muhim:</strong>
+        <p>Browser da to'g'ridan-to'g'ri Kerio Control ga ulanib bo'lmaydi. Asterisk WebRTC gateway kerak.</p>
+        <p>Agar ulanmayotgan bo'lsa, MicroSIP ishlatishni tavsiya qilamiz.</p>
+      </div>
+      
       <div className="form-group">
         <label>SIP Server</label>
         <input
           type="text"
           value={config.server}
           onChange={(e) => setConfig({ ...config, server: e.target.value })}
-          placeholder="152.53.229.176"
+          placeholder="90.156.199.92"
         />
       </div>
 
@@ -77,7 +83,7 @@ const SipSettings = ({ onSave }: SipSettingsProps) => {
           type="text"
           value={config.domain}
           onChange={(e) => setConfig({ ...config, domain: e.target.value })}
-          placeholder="152.53.229.176"
+          placeholder="90.156.199.92"
         />
       </div>
 
@@ -89,4 +95,3 @@ const SipSettings = ({ onSave }: SipSettingsProps) => {
 };
 
 export default SipSettings;
-

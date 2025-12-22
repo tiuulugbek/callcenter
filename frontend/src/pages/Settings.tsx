@@ -328,8 +328,13 @@ const Settings = () => {
                   <div className="sip-credentials">
                     <div className="credential-item">
                       <strong>SIP Server / Proxy:</strong>
-                      <code id="sip-server">192.168.1.100</code>
-                      <small>Yoki Asterisk server IP manzili</small>
+                      <code id="sip-server">152.53.229.176</code>
+                      <small>Asterisk server IP manzili</small>
+                    </div>
+                    <div className="credential-item">
+                      <strong>Domain:</strong>
+                      <code id="sip-domain">152.53.229.176</code>
+                      <small>Asterisk server IP yoki domain (crm24.soundz.uz)</small>
                     </div>
                     <div className="credential-item">
                       <strong>Username / User ID:</strong>
@@ -342,11 +347,6 @@ const Settings = () => {
                       <small>Yaratilgan parol</small>
                     </div>
                     <div className="credential-item">
-                      <strong>Domain:</strong>
-                      <code id="sip-domain">192.168.1.100</code>
-                      <small>Asterisk server IP yoki domain</small>
-                    </div>
-                    <div className="credential-item">
                       <strong>Port:</strong>
                       <code>5060</code>
                       <small>Default SIP port</small>
@@ -354,12 +354,27 @@ const Settings = () => {
                   </div>
 
                   <div className="sip-example">
+                    <h5>Misol (MicroSIP - Windows):</h5>
+                    <ol>
+                      <li>MicroSIP ni oching</li>
+                      <li>Account → Add</li>
+                      <li>Domain: <code>152.53.229.176</code></li>
+                      <li>Username: <code>{newExtension.extension || '1001'}</code></li>
+                      <li>Password: <code>your_password</code></li>
+                      <li>Proxy: <code>152.53.229.176</code></li>
+                      <li>Port: <code>5060</code></li>
+                      <li>Transport: UDP</li>
+                      <li>Register: ✅ Enable</li>
+                    </ol>
+                  </div>
+
+                  <div className="sip-example">
                     <h5>Misol (Linphone):</h5>
                     <ol>
                       <li>Settings → SIP Accounts → Add Account</li>
-                      <li>Username: <code>1001</code></li>
+                      <li>Username: <code>{newExtension.extension || '1001'}</code></li>
                       <li>Password: <code>your_password</code></li>
-                      <li>Domain: <code>192.168.1.100</code></li>
+                      <li>Domain: <code>152.53.229.176</code></li>
                       <li>Transport: UDP</li>
                       <li>Port: 5060</li>
                     </ol>
@@ -369,9 +384,9 @@ const Settings = () => {
                     <h5>Misol (Zoiper):</h5>
                     <ol>
                       <li>Add Account → SIP Account</li>
-                      <li>Username: <code>1001</code></li>
+                      <li>Username: <code>{newExtension.extension || '1001'}</code></li>
                       <li>Password: <code>your_password</code></li>
-                      <li>Domain: <code>192.168.1.100</code></li>
+                      <li>Domain: <code>152.53.229.176</code></li>
                       <li>Save</li>
                     </ol>
                   </div>
@@ -379,9 +394,10 @@ const Settings = () => {
                   <div className="warning-box">
                     <strong>⚠️ Muhim:</strong>
                     <ul>
-                      <li>Telefon va Asterisk server bir xil tarmoqda bo'lishi kerak</li>
+                      <li>Server IP: <code>152.53.229.176</code> yoki <code>crm24.soundz.uz</code></li>
                       <li>Firewall da 5060 port ochiq bo'lishi kerak</li>
-                      <li>Asterisk server IP manzilini o'zgartiring</li>
+                      <li>Extension yaratgandan keyin Asterisk avtomatik reload qilinadi</li>
+                      <li>Agar ulanmayotgan bo'lsa, Asterisk loglarini tekshiring</li>
                     </ul>
                   </div>
                 </div>

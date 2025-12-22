@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { OperatorsService } from '../operators/operators.service';
 import { SipTrunkService } from './sip-trunk.service';
+import { SipExtensionService } from './sip-extension.service';
 import axios from 'axios';
 
 @Injectable()
@@ -10,6 +11,7 @@ export class SettingsService {
     private configService: ConfigService,
     private operatorsService: OperatorsService,
     private sipTrunkService: SipTrunkService,
+    private sipExtensionService: SipExtensionService,
   ) {}
 
   async getSettings() {
@@ -83,36 +85,11 @@ export class SettingsService {
   }
 
   async createSipExtension(operatorId: string, extension: string, password: string) {
-    // Operator extension ni yangilash
-    const operator = await this.operatorsService.findById(operatorId);
-    if (!operator) {
-      throw new Error('Operator topilmadi');
-    }
-
-    // Extension ni yangilash (agar kerak bo'lsa)
-    // Bu yerda Asterisk PJSIP konfiguratsiyasini yangilash kerak
-    // Yoki extension ma'lumotlarini database ga saqlash
-
-    return {
-      success: true,
-      message: 'SIP extension yaratildi',
-      extension: {
-        operatorId,
-        extension,
-        // password ni hash qilish kerak
-      },
-    };
+    return this.sipExtensionService.createExtension(operatorId, extension, password);
   }
 
   async getSipExtensions() {
-    // Barcha operatorlar va ularning extensionlarini olish
-    const operators = await this.operatorsService.findAll();
-    return operators.map((op) => ({
-      id: op.id,
-      name: op.name,
-      extension: op.extension,
-      status: op.status,
-    }));
+    return this.sipExtensionService.getExtensions();
   }
 
   async createSipTrunk(data: {

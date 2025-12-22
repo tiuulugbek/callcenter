@@ -57,10 +57,21 @@ npm run build || {
 echo "   Restarting PM2..."
 pm2 restart call-center-backend || {
     echo -e "${YELLOW}Warning: PM2 restart failed (might not be running)${NC}"
-    pm2 start dist/main.js --name call-center-backend || {
-        echo -e "${RED}Error: PM2 start failed${NC}"
+    # Try dist/main.js first, then dist/src/main.js
+    if [ -f "dist/main.js" ]; then
+        pm2 start dist/main.js --name call-center-backend || {
+            echo -e "${RED}Error: PM2 start failed${NC}"
+            exit 1
+        }
+    elif [ -f "dist/src/main.js" ]; then
+        pm2 start dist/src/main.js --name call-center-backend || {
+            echo -e "${RED}Error: PM2 start failed${NC}"
+            exit 1
+        }
+    else
+        echo -e "${RED}Error: No main.js found in dist/ or dist/src/${NC}"
         exit 1
-    }
+    fi
 }
 
 cd ..

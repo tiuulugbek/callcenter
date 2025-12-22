@@ -1,195 +1,170 @@
 # GitHub Workflow - To'liq Qo'llanma
 
-## Lokal (Development) - Kodlarni GitHub ga Push Qilish
+## 📋 Workflow
 
-### 1. O'zgarishlarni Tekshirish
+### 1. Lokal Mashinada - Kod O'zgartirish va Push
 
 ```bash
+# 1. Kod o'zgartirish
 cd /Users/tiuulugbek/asterisk-call-center
 
-# O'zgarishlarni ko'rish
+# 2. O'zgarishlarni ko'rish
 git status
 
-# Qaysi fayllar o'zgargandi?
-git diff
-```
-
-### 2. O'zgarishlarni Qo'shish va Commit Qilish
-
-```bash
-cd /Users/tiuulugbek/asterisk-call-center
-
-# Barcha o'zgarishlarni qo'shish
+# 3. Barcha o'zgarishlarni qo'shish
 git add .
 
-# Commit qilish
-git commit -m "Fix: Qo'ng'iroq muammosini hal qilish va sozlamalarni yangilash"
+# 4. Commit qilish
+git commit -m "Fix: Qo'ng'iroq sozlamalari va deploy script"
 
-# GitHub ga push qilish
+# 5. GitHub ga push qilish
 git push origin main
 ```
 
-## Serverda (Production) - Kodlarni Yangilash
-
-### 1. Serverga Kirish
+### 2. Serverda - Pull va Deploy
 
 ```bash
+# 1. Serverga ulanish
 ssh root@152.53.229.176
-```
 
-### 2. Kodni Yangilash
-
-```bash
+# 2. Project papkasiga o'tish
 cd /var/www/call-center
 
-# GitHub dan yangi kodlarni olish
-git pull origin main
-```
-
-### 3. Backend Yangilanishlar
-
-```bash
-cd /var/www/call-center/backend
-
-# Yangi paketlar bo'lsa
-npm install
-
-# Prisma Client yangilash (agar schema o'zgarganda)
-npm run prisma:generate
-
-# Database migration (agar schema o'zgarganda)
-npx prisma db push
-
-# Build
-npm run build
-
-# PM2 restart
-pm2 restart call-center-backend --update-env
-
-# Loglar
-pm2 logs call-center-backend --lines 50
-```
-
-### 4. Frontend Yangilanishlar (Agar O'zgarganda)
-
-```bash
-cd /var/www/call-center/frontend
-
-# Yangi paketlar bo'lsa
-npm install
-
-# Build
-npm run build
-
-# Nginx ga ko'chirish
-cp -r dist/* /var/www/crm24/
-chown -R www-data:www-data /var/www/crm24
-```
-
-## Tezkor Deploy Script
-
-Serverda `deploy.sh` script ni ishlatish:
-
-```bash
-cd /var/www/call-center
-
-# Script ni executable qilish (birinchi marta)
-chmod +x deploy.sh
-
-# Deploy qilish
+# 3. Deploy scriptni ishga tushirish
 ./deploy.sh
 ```
 
-## Qo'ng'iroq Muammosini Debug Qilish
-
-### 1. Asterisk Loglar
+Yoki qo'lda:
 
 ```bash
-# Real-time loglar
-asterisk -rvvv
+# 1. Git pull
+git pull origin main
 
-# Yoki
-sudo journalctl -u asterisk -f
+# 2. Backend
+cd backend
+npm install
+npm run prisma:generate
+npm run build
+pm2 restart call-center-backend --update-env
+cd ..
+
+# 3. Frontend
+cd frontend
+npm install
+npm run build
+mkdir -p /var/www/crm24
+cp -r dist/* /var/www/crm24/
+chown -R www-data:www-data /var/www/crm24
+cd ..
 ```
 
-### 2. Backend Loglar
+## 🔧 Deploy Script
+
+Deploy script avtomatik ravishda:
+1. ✅ Git pull qiladi
+2. ✅ Backend dependencies o'rnatadi
+3. ✅ Prisma client generate qiladi
+4. ✅ Backend build qiladi
+5. ✅ PM2 restart qiladi
+6. ✅ Frontend dependencies o'rnatadi
+7. ✅ Frontend build qiladi
+8. ✅ Nginx papkasiga ko'chiradi
+
+## 📝 Deploy Scriptni Ishlatish
 
 ```bash
-# Real-time loglar
+# Serverda
+cd /var/www/call-center
+chmod +x deploy.sh
+./deploy.sh
+```
+
+## 🐛 Muammolar
+
+### Git Pull Xatosi
+
+```bash
+# Agar git pull xatolik bersa
+git stash
+git pull origin main
+git stash pop
+```
+
+### PM2 Restart Xatosi
+
+```bash
+# PM2 ni to'liq restart
+pm2 delete call-center-backend
+cd /var/www/call-center/backend
+pm2 start dist/main.js --name call-center-backend
+# yoki
+pm2 start dist/src/main.js --name call-center-backend
+```
+
+### Build Xatosi
+
+```bash
+# Backend build
+cd /var/www/call-center/backend
+rm -rf dist node_modules
+npm install
+npm run build
+
+# Frontend build
+cd /var/www/call-center/frontend
+rm -rf dist node_modules
+npm install
+npm run build
+```
+
+## 🔍 Tekshirish
+
+### Backend Ishlamoqdamimi?
+
+```bash
+# PM2 status
+pm2 status
+
+# Backend loglar
 pm2 logs call-center-backend
 
-# Yoki oxirgi 100 qator
-pm2 logs call-center-backend --lines 100
+# API test
+curl http://localhost:4000/auth/login -X POST -H "Content-Type: application/json" -d '{"username":"admin","password":"admin123"}'
 ```
 
-### 3. ARI Tekshirish
+### Frontend Ishlamoqdamimi?
 
 ```bash
-# ARI ishlayaptimi?
-asterisk -rx "ari show status"
+# Browser da ochish
+https://crm24.soundz.uz
 
-# ARI WebSocket ulanganmi?
-# Backend loglarda "Connected to Asterisk ARI WebSocket" ko'rinishi kerak
+# Yoki
+curl https://crm24.soundz.uz
 ```
 
-### 4. Test Qo'ng'iroq
+## 📊 Monitoring
+
+### Real-time Monitoring
 
 ```bash
-# Asterisk CLI da
-asterisk -rvvv
-# CLI da: core show channels
+# Backend loglar
+pm2 logs call-center-backend --lines 50
 
-# Test qo'ng'iroq qiling va loglarni ko'ring
+# Asterisk loglar
+journalctl -u asterisk -f
+
+# Nginx loglar
+tail -f /var/log/nginx/access.log
+tail -f /var/log/nginx/error.log
 ```
 
-## Muammolarni Hal Qilish
+## 🚀 Tezkor Deploy
 
-### Qo'ng'iroq Kelmayapti
-
-1. **SIP Trunk tekshirish:**
-   ```bash
-   asterisk -rx "pjsip show endpoints Kerio"
-   ```
-
-2. **Dialplan tekshirish:**
-   ```bash
-   asterisk -rx "dialplan show from-external"
-   ```
-
-3. **ARI tekshirish:**
-   ```bash
-   asterisk -rx "ari show status"
-   ```
-
-### Backend ga Kelmayapti
-
-1. **ARI WebSocket ulanganmi?**
-   - Backend loglarda "Connected to Asterisk ARI WebSocket" ko'rinishi kerak
-
-2. **Stasis app nomi to'g'rimi?**
-   - Dialplan da: `Stasis(call-center,${CALL_ID})`
-   - Backend da: `app=call-center`
-
-3. **Backend loglar:**
-   ```bash
-   pm2 logs call-center-backend --lines 100
-   ```
-
-## To'liq Workflow
-
-### Lokal:
 ```bash
+# Lokal
 cd /Users/tiuulugbek/asterisk-call-center
-git add .
-git commit -m "Fix: Muammo hal qilindi"
-git push origin main
-```
+git add . && git commit -m "Update" && git push origin main
 
-### Serverda:
-```bash
-ssh root@152.53.229.176
-cd /var/www/call-center
-git pull origin main
-cd backend && npm install && npm run build && pm2 restart call-center-backend --update-env
+# Server
+ssh root@152.53.229.176 "cd /var/www/call-center && ./deploy.sh"
 ```
-

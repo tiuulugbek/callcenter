@@ -1,0 +1,58 @@
+.sip-settings {
+  background: white;
+  border-radius: 8px;
+  padding: 1.5rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  margin-bottom: 2rem;
+}
+
+.sip-settings h3 {
+  margin-bottom: 0.5rem;
+  color: #2c3e50;
+}
+
+.sip-description {
+  color: #7f8c8d;
+  margin-bottom: 1.5rem;
+  font-size: 0.9rem;
+}
+
+.sip-settings .form-group {
+  margin-bottom: 1rem;
+}
+
+.sip-settings .form-group label {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: #555;
+  font-weight: 500;
+}
+
+.sip-settings .form-group input {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 1rem;
+}
+
+.sip-settings .form-group input:focus {
+  outline: none;
+  border-color: #3498db;
+}
+
+.sip-settings .btn-primary {
+  padding: 0.75rem 1.5rem;
+  background-color: #27ae60;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: background-color 0.3s;
+}
+
+.sip-settings .btn-primary:hover {
+  background-color: #229954;
+}
+

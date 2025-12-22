@@ -244,10 +244,20 @@ const Settings = () => {
         <div className="settings-content">
           {activeTab === 'sip' && (
             <div className="settings-section">
-              <h2>SIP Extensionlar</h2>
+              <h2>SIP Extensionlar (MicroSIP uchun)</h2>
               <p className="settings-description">
-                Operatorlar uchun SIP extensionlar yarating. Har bir operator o'z telefonini ushbu extension va parol bilan ulash mumkin.
+                Operatorlar uchun SIP extensionlar yarating. Har bir operator MicroSIP yoki boshqa SIP client orqali ulanib, telefon qilish va qabul qilish mumkin.
               </p>
+              <div className="info-box">
+                <strong>📱 MicroSIP da Ulanish:</strong>
+                <ul>
+                  <li><strong>SIP Server:</strong> <code>152.53.229.176</code> yoki <code>crm24.soundz.uz</code></li>
+                  <li><strong>Username:</strong> Extension raqami (masalan: <code>1001</code>)</li>
+                  <li><strong>Password:</strong> Yaratilgan parol</li>
+                  <li><strong>Domain:</strong> <code>152.53.229.176</code> yoki <code>crm24.soundz.uz</code></li>
+                </ul>
+                <p><strong>✅ Bu bo'lim MicroSIP uchun kerak!</strong></p>
+              </div>
 
               <div className="form-section">
                 <h3>Yangi Extension Yaratish</h3>
@@ -418,11 +428,20 @@ const Settings = () => {
 
           {activeTab === 'trunk' && (
             <div className="settings-section">
-              <h2>SIP Trunk (Provayder) Sozlash</h2>
+              <h2>SIP Trunk (Tashqi Provayder) Sozlash</h2>
               <p className="settings-description">
                 SIP provayderlarni (Kerio Control, boshqa SIP provayderlar) Asterisk ga ulash uchun sozlang.
                 Bu orqali tashqi telefon raqamlariga qo'ng'iroq qilish va qabul qilish mumkin.
               </p>
+              <div className="warning-box">
+                <strong>⚠️ Muhim:</strong>
+                <ul>
+                  <li><strong>SIP Trunk MicroSIP uchun emas!</strong></li>
+                  <li>SIP Trunk faqat Asterisk server uchun tashqi provayderga ulanish uchun</li>
+                  <li>MicroSIP uchun "SIP Extensionlar" bo'limidan foydalaning</li>
+                  <li>SIP Trunk kerak bo'lsa: tashqi telefon raqamlariga qo'ng'iroq qilish yoki tashqidan kelgan qo'ng'iroqlarni qabul qilish</li>
+                </ul>
+              </div>
 
               <div className="form-section">
                 <h3>Yangi SIP Trunk Yaratish</h3>

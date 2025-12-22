@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import Layout from '../components/Layout'
 import { wsService } from '../services/websocket'
+import Phone from '../components/Phone'
+import { api } from '../services/api'
 import './Dashboard.css'
 
 interface IncomingCall {
@@ -14,8 +16,43 @@ interface IncomingCall {
 const Dashboard = () => {
   const [incomingCall, setIncomingCall] = useState<IncomingCall | null>(null)
   const [showPopup, setShowPopup] = useState(false)
+  const [sipConfig, setSipConfig] = useState<{
+    server: string;
+    username: string;
+    password: string;
+    domain: string;
+  } | null>(null)
 
   useEffect(() => {
+    // SIP sozlamalarini yuklash
+    const loadSipConfig = async () => {
+      try {
+        // Operator ma'lumotlarini olish (hozirgi foydalanuvchi)
+        const token = localStorage.getItem('token')
+        if (!token) return
+
+        // Settings dan SIP extension ma'lumotlarini olish
+        const response = await api.get('/settings/sip-extensions')
+        if (response.data && response.data.length > 0) {
+          const extension = response.data[0]
+          // Password ni localStorage dan olish yoki so'ralishi kerak
+          const storedPassword = localStorage.getItem('sip_password')
+          if (extension.extension && storedPassword) {
+            setSipConfig({
+              server: '152.53.229.176', // Kerio Control server
+              username: extension.extension,
+              password: storedPassword,
+              domain: '152.53.229.176',
+            })
+          }
+        }
+      } catch (error) {
+        console.error('SIP config yuklashda xatolik:', error)
+      }
+    }
+
+    loadSipConfig()
+
     const socket = wsService.connect()
 
     socket.on('incoming_call', (data: IncomingCall) => {
@@ -37,6 +74,14 @@ const Dashboard = () => {
     <Layout>
       <div className="dashboard">
         <h1>Dashboard</h1>
+        
+        {sipConfig && (
+          <div className="phone-section">
+            <h2>Telefon</h2>
+            <Phone config={sipConfig} />
+          </div>
+        )}
+
         <div className="dashboard-stats">
           <div className="stat-card">
             <h3>Bugungi qo'ng'iroqlar</h3>

@@ -1,70 +1,110 @@
 #!/bin/bash
 
-# Serverga Deploy Qilish Skripti
+# Call Center Deployment Script
+# Usage: ./deploy.sh
 
-SERVER_IP="152.53.229.176"
-SERVER_USER="root"
-DOMAIN="crm24.soundz.uz"
-PROJECT_DIR="/var/www/call-center"
+set -e  # Exit on error
 
-echo "=========================================="
-echo "Call Center Deploy Script"
-echo "=========================================="
-echo "Server: $SERVER_USER@$SERVER_IP"
-echo "Domain: $DOMAIN"
+echo "=== Call Center Deployment Script ==="
 echo ""
 
-# 1. Local build
-echo "1. Local build qilinmoqda..."
-cd backend
-npm run build
-cd ../frontend
-npm run build
-cd ..
+# Colors
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+RED='\033[0;31m'
+NC='\033[0m' # No Color
 
-# 2. Archive yaratish
-echo "2. Archive yaratilmoqda..."
-tar -czf call-center-deploy.tar.gz \
-  --exclude='node_modules' \
-  --exclude='.git' \
-  --exclude='*.log' \
-  --exclude='.env' \
-  backend frontend asterisk-config *.md
+# Check if we're in the right directory
+if [ ! -d "backend" ] || [ ! -d "frontend" ]; then
+    echo -e "${RED}Error: This script must be run from the project root directory${NC}"
+    exit 1
+fi
 
-# 3. Serverga yuklash
-echo "3. Serverga yuklanmoqda..."
-scp call-center-deploy.tar.gz $SERVER_USER@$SERVER_IP:/tmp/
-
-# 4. Serverda deploy
-echo "4. Serverda deploy qilinmoqda..."
-ssh $SERVER_USER@$SERVER_IP << 'ENDSSH'
-cd /var/www
-mkdir -p call-center
-cd call-center
-tar -xzf /tmp/call-center-deploy.tar.gz
-rm /tmp/call-center-deploy.tar.gz
+# Git pull
+echo -e "${YELLOW}1. Git pull...${NC}"
+git pull origin main || {
+    echo -e "${RED}Error: Git pull failed${NC}"
+    exit 1
+}
+echo -e "${GREEN}✓ Git pull successful${NC}"
+echo ""
 
 # Backend
+echo -e "${YELLOW}2. Backend yangilanishlar...${NC}"
 cd backend
-npm install --production
-npm run prisma:generate
-npm run build
-pm2 restart call-center-backend || pm2 start dist/main.js --name call-center-backend
+
+# Install dependencies
+echo "   Installing dependencies..."
+npm install || {
+    echo -e "${RED}Error: npm install failed${NC}"
+    exit 1
+}
+
+# Prisma generate (if schema changed)
+echo "   Generating Prisma client..."
+npm run prisma:generate || {
+    echo -e "${YELLOW}Warning: Prisma generate failed (might be OK)${NC}"
+}
+
+# Build
+echo "   Building..."
+npm run build || {
+    echo -e "${RED}Error: Build failed${NC}"
+    exit 1
+}
+
+# Restart PM2
+echo "   Restarting PM2..."
+pm2 restart call-center-backend || {
+    echo -e "${YELLOW}Warning: PM2 restart failed (might not be running)${NC}"
+    pm2 start dist/main.js --name call-center-backend || {
+        echo -e "${RED}Error: PM2 start failed${NC}"
+        exit 1
+    }
+}
+
+cd ..
+echo -e "${GREEN}✓ Backend updated${NC}"
+echo ""
 
 # Frontend
-cd ../frontend
-npm install
-npm run build
-cp -r dist/* /var/www/crm24/
+echo -e "${YELLOW}3. Frontend yangilanishlar...${NC}"
+cd frontend
 
-echo "Deploy muvaffaqiyatli!"
-ENDSSH
+# Install dependencies
+echo "   Installing dependencies..."
+npm install || {
+    echo -e "${RED}Error: npm install failed${NC}"
+    exit 1
+}
 
+# Build
+echo "   Building..."
+npm run build || {
+    echo -e "${RED}Error: Build failed${NC}"
+    exit 1
+}
+
+# Copy to nginx directory
+echo "   Copying files..."
+mkdir -p /var/www/crm24
+cp -r dist/* /var/www/crm24/ || {
+    echo -e "${RED}Error: Copy failed${NC}"
+    exit 1
+}
+
+# Set permissions
+chown -R www-data:www-data /var/www/crm24
+
+cd ..
+echo -e "${GREEN}✓ Frontend updated${NC}"
 echo ""
-echo "=========================================="
-echo "Deploy yakunlandi!"
-echo "=========================================="
-echo "Frontend: https://$DOMAIN"
-echo "Backend API: https://$DOMAIN/api"
-echo ""
 
+# Summary
+echo -e "${GREEN}=== Deployment Tugadi ===${NC}"
+echo ""
+echo "PM2 Status:"
+pm2 status
+echo ""
+echo "Backend logs: pm2 logs call-center-backend"
+echo "Frontend: https://crm24.soundz.uz"

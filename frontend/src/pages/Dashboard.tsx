@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import Layout from '../components/Layout'
 import { wsService } from '../services/websocket'
 import Phone from '../components/Phone'
-import api, { settingsApi } from '../services/api'
+import { settingsApi } from '../services/api'
 import './Dashboard.css'
 
 interface IncomingCall {

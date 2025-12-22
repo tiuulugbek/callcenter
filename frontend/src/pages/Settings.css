@@ -355,3 +355,33 @@ button:disabled {
   color: #721c24;
 }
 
+.kerio-status {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1rem;
+  background: #f8f9fa;
+  border-radius: 4px;
+  margin-bottom: 1rem;
+}
+
+.kerio-status .status-indicator {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #dc3545;
+}
+
+.kerio-status .status-indicator.connected {
+  background: #28a745;
+}
+
+.kerio-status pre {
+  background: #f8f9fa;
+  padding: 1rem;
+  border-radius: 4px;
+  overflow-x: auto;
+  font-size: 0.9rem;
+  margin-top: 1rem;
+}
+

@@ -106,6 +106,21 @@ export const operatorsApi = {
   },
 }
 
+export const kerioApi = {
+  verifyAuth: async () => {
+    const response = await api.get('/kerio/auth/verify')
+    return response.data
+  },
+  syncCalls: async (params?: { startDate?: string; endDate?: string; extension?: string }) => {
+    const response = await api.post('/kerio/sync', null, { params })
+    return response.data
+  },
+  getRecording: async (pbxCallId: string) => {
+    const response = await api.get(`/kerio/calls/${pbxCallId}/recording`)
+    return response.data
+  },
+}
+
 export const contactsApi = {
   getAll: async (search?: string) => {
     const response = await api.get('/contacts', { params: { search } })

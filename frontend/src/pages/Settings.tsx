@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react'
 import Layout from '../components/Layout'
-import { settingsApi, operatorsApi } from '../services/api'
+import { settingsApi, operatorsApi, kerioApi } from '../services/api'
 import './Settings.css'
 
 const Settings = () => {
-  const [activeTab, setActiveTab] = useState<'sip' | 'trunk' | 'telegram' | 'facebook'>('sip')
+  const [activeTab, setActiveTab] = useState<'sip' | 'trunk' | 'telegram' | 'facebook' | 'kerio'>('sip')
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error' | 'warning'; text: string } | null>(null)
 
@@ -32,11 +32,46 @@ const Settings = () => {
   const [facebookSecret, setFacebookSecret] = useState('')
   const [facebookVerifyToken, setFacebookVerifyToken] = useState('')
 
+  // Kerio Operator Settings
+  const [kerioConnected, setKerioConnected] = useState(false)
+  const [kerioSyncing, setKerioSyncing] = useState(false)
+
   useEffect(() => {
     loadSettings()
     loadSipExtensions()
     loadSipTrunks()
+    checkKerioConnection()
   }, [])
+
+  const checkKerioConnection = async () => {
+    try {
+      const result = await kerioApi.verifyAuth()
+      setKerioConnected(result.authenticated)
+    } catch (error) {
+      console.error('Kerio connection check error:', error)
+      setKerioConnected(false)
+    }
+  }
+
+  const handleSyncKerio = async () => {
+    setKerioSyncing(true)
+    setMessage(null)
+    try {
+      const result = await kerioApi.syncCalls()
+      setMessage({
+        type: 'success',
+        text: result.message || 'Qo\'ng\'iroqlar muvaffaqiyatli yangilandi',
+      })
+      // Calls ro'yxatini yangilash uchun page reload yoki calls API chaqirish
+    } catch (error: any) {
+      setMessage({
+        type: 'error',
+        text: error.message || 'Sync qilishda xatolik yuz berdi',
+      })
+    } finally {
+      setKerioSyncing(false)
+    }
+  }
 
   const loadSettings = async () => {
     try {
@@ -260,6 +295,12 @@ const Settings = () => {
             onClick={() => setActiveTab('facebook')}
           >
             Facebook/Instagram
+          </button>
+          <button
+            className={activeTab === 'kerio' ? 'active' : ''}
+            onClick={() => setActiveTab('kerio')}
+          >
+            Kerio Operator
           </button>
         </div>
 
@@ -699,6 +740,62 @@ const Settings = () => {
               <div className="info-box">
                 <h4>Eslatma</h4>
                 <p>Facebook sozlamalarini saqlagandan keyin, backend .env faylini ham yangilang va serverni qayta ishga tushiring.</p>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'kerio' && (
+            <div className="settings-section">
+              <h2>Kerio Operator Integratsiyasi</h2>
+              <p className="settings-description">
+                Kerio Operator PBX bilan integratsiya qilish. Qo'ng'iroq ma'lumotlarini avtomatik ravishda olish va saqlash.
+              </p>
+
+              <div className="form-section">
+                <h3>Ulanish Holati</h3>
+                <div className="kerio-status">
+                  <div className={`status-indicator ${kerioConnected ? 'connected' : 'disconnected'}`}></div>
+                  <span>{kerioConnected ? 'Kerio Operator ga ulanadi' : 'Kerio Operator ga ulanmagan'}</span>
+                  <button 
+                    onClick={checkKerioConnection} 
+                    disabled={loading}
+                    style={{ marginLeft: '1rem' }}
+                  >
+                    Tekshirish
+                  </button>
+                </div>
+              </div>
+
+              <div className="form-section">
+                <h3>Qo'ng'iroqlarni Sync Qilish</h3>
+                <p className="settings-description">
+                  Kerio Operator dan qo'ng'iroq ma'lumotlarini olish va database ga saqlash.
+                </p>
+                <button 
+                  onClick={handleSyncKerio} 
+                  disabled={kerioSyncing || !kerioConnected}
+                  className="btn-primary"
+                >
+                  {kerioSyncing ? 'Sync qilinmoqda...' : 'Qo\'ng\'iroqlarni Sync Qilish'}
+                </button>
+              </div>
+
+              <div className="info-box">
+                <h4>📋 Kerio Operator Sozlash</h4>
+                <p>Backend .env faylida quyidagi o'zgaruvchilarni sozlang:</p>
+                <pre>
+{`KERIO_PBX_HOST=90.156.199.92
+KERIO_API_USERNAME=your_api_username
+KERIO_API_PASSWORD=your_api_password
+KERIO_SYNC_INTERVAL=5`}
+                </pre>
+                <p><strong>Eslatma:</strong> Kerio Operator API endpoint lari haqiqiy API ga moslashtirish kerak.</p>
+              </div>
+
+              <div className="info-box">
+                <h4>🔄 Avtomatik Sync</h4>
+                <p>Backend ishga tushganda avtomatik ravishda har 5 minutda sync qiladi.</p>
+                <p>Sync interval ni o'zgartirish uchun <code>KERIO_SYNC_INTERVAL</code> o'zgaruvchisini sozlang.</p>
               </div>
             </div>
           )}

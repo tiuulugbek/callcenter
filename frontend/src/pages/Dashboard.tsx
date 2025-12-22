@@ -1,9 +1,6 @@
 import { useEffect, useState } from 'react'
 import Layout from '../components/Layout'
 import { wsService } from '../services/websocket'
-import Phone from '../components/Phone'
-import SipSettings from '../components/SipSettings'
-import { settingsApi } from '../services/api'
 import './Dashboard.css'
 
 interface IncomingCall {
@@ -17,63 +14,8 @@ interface IncomingCall {
 const Dashboard = () => {
   const [incomingCall, setIncomingCall] = useState<IncomingCall | null>(null)
   const [showPopup, setShowPopup] = useState(false)
-  const [sipConfig, setSipConfig] = useState<{
-    server: string;
-    username: string;
-    password: string;
-    domain: string;
-  } | null>(null)
 
   useEffect(() => {
-    // SIP sozlamalarini yuklash (faqat agar localStorage da bor bo'lsa)
-    const loadSipConfig = async () => {
-      try {
-        const token = localStorage.getItem('token')
-        if (!token) return
-
-        // SIP ma'lumotlarini localStorage dan olish
-        const sipUsername = localStorage.getItem('sip_username')
-        const sipPassword = localStorage.getItem('sip_password')
-        const sipServer = localStorage.getItem('sip_server') || '152.53.229.176'
-        const sipDomain = localStorage.getItem('sip_domain') || '152.53.229.176'
-
-        if (sipUsername && sipPassword) {
-          setSipConfig({
-            server: sipServer,
-            username: sipUsername,
-            password: sipPassword,
-            domain: sipDomain,
-          })
-        } else {
-          // Agar localStorage da yo'q bo'lsa, settings dan yuklashga harakat qilish
-          try {
-            const extensions = await settingsApi.getSipExtensions()
-            if (extensions && Array.isArray(extensions) && extensions.length > 0) {
-              const extension = extensions[0]
-              if (extension.extension) {
-                // Password so'ralishi kerak yoki localStorage dan olish
-                const storedPassword = localStorage.getItem('sip_password')
-                if (storedPassword) {
-                  setSipConfig({
-                    server: sipServer,
-                    username: extension.extension,
-                    password: storedPassword,
-                    domain: sipDomain,
-                  })
-                }
-              }
-            }
-          } catch (error) {
-            console.error('SIP extensions yuklashda xatolik:', error)
-          }
-        }
-      } catch (error) {
-        console.error('SIP config yuklashda xatolik:', error)
-      }
-    }
-
-    loadSipConfig()
-
     // WebSocket orqali kiruvchi qo'ng'iroqlarni qabul qilish
     const socket = wsService.connect()
 
@@ -96,26 +38,6 @@ const Dashboard = () => {
     <Layout>
       <div className="dashboard">
         <h1>Dashboard</h1>
-        
-        {!sipConfig && (
-          <div className="phone-section">
-            <SipSettings onSave={(config) => setSipConfig(config)} />
-          </div>
-        )}
-        
-        {sipConfig && (
-          <div className="phone-section">
-            <h2>Telefon</h2>
-            <Phone config={sipConfig} />
-            <button 
-              onClick={() => setSipConfig(null)} 
-              className="btn-secondary"
-              style={{ marginTop: '1rem' }}
-            >
-              Sozlamalarni o'zgartirish
-            </button>
-          </div>
-        )}
 
         <div className="dashboard-stats">
           <div className="stat-card">

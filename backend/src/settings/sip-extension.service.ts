@@ -185,14 +185,8 @@ password = ${password}
 
   async getExtensions() {
     // Database dan extensionlarni olish
-    const operators = await this.prisma.operator.findMany({
-      where: {
-        extension: {
-          not: {
-            equals: null,
-          },
-        },
-      },
+    // Barcha operatorlarni olish va keyin filter qilish
+    const allOperators = await this.prisma.operator.findMany({
       select: {
         id: true,
         name: true,
@@ -201,7 +195,8 @@ password = ${password}
       },
     });
 
-    return operators;
+    // Extension mavjud bo'lgan operatorlarni qaytarish
+    return allOperators.filter(op => op.extension !== null && op.extension !== '');
   }
 }
 

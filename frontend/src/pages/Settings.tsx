@@ -173,14 +173,16 @@ const Settings = () => {
       
       if (result.manual) {
         // Agar manual bo'lsa, konfiguratsiyani ko'rsatish
+        const configText = result.config ? `\n\nQuyidagi konfiguratsiyani /etc/asterisk/pjsip.conf fayliga qo'shing:\n\n${result.config}` : '';
+        const errorText = result.error ? `\n\nXatolik: ${result.error}` : '';
         setMessage({
-          type: 'success',
-          text: `SIP trunk muvaffaqiyatli yaratildi va saqlandi. Lekin pjsip.conf faylini qo'lda yangilash kerak. Quyidagi konfiguratsiyani /etc/asterisk/pjsip.conf fayliga qo'shing:\n\n${result.config || ''}`,
+          type: 'warning',
+          text: `${result.message}${configText}${errorText}\n\nYoki serverda permissions fix scriptni ishga tushiring:\nssh root@152.53.229.176\ncd /var/www/call-center\n./fix_sip_trunk_permissions.sh`,
         })
       } else {
         setMessage({
           type: 'success',
-          text: 'SIP trunk muvaffaqiyatli yaratildi, saqlandi va Asterisk reload qilindi',
+          text: result.message || 'SIP trunk muvaffaqiyatli yaratildi, saqlandi va Asterisk ga ulanadi',
         })
       }
       

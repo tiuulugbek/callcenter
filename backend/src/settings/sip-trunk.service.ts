@@ -57,18 +57,27 @@ export class SipTrunkService {
       await this.updatePjsipConfig(data.name, config);
       return {
         success: true,
-        message: 'SIP trunk muvaffaqiyatli yaratildi va pjsip.conf fayli yangilandi',
+        message: 'SIP trunk muvaffaqiyatli yaratildi, saqlandi va Asterisk ga ulanadi',
         config: config,
         manual: false,
       };
     } catch (error: any) {
       this.logger.error('PJSIP config yangilashda xatolik:', error);
-      // Agar fayl yozib bo'lmasa, faqat konfiguratsiyani qaytarish
+      
+      // Permissions muammosi bo'lsa, aniqroq xabar
+      const errorMessage = error.message || 'Noma\'lum xatolik';
+      let userMessage = `SIP trunk database ga saqlandi. Lekin pjsip.conf faylini avtomatik yangilashda xatolik: ${errorMessage}`;
+      
+      if (errorMessage.includes('EACCES') || errorMessage.includes('permission') || errorMessage.includes('yozib bo\'lmadi')) {
+        userMessage = `SIP trunk database ga saqlandi. Permissions muammosi tufayli pjsip.conf faylini qo'lda yangilash kerak. Quyidagi konfiguratsiyani /etc/asterisk/pjsip.conf fayliga qo'shing yoki permissions fix scriptni ishga tushiring.`;
+      }
+      
       return {
         success: true,
-        message: `SIP trunk konfiguratsiyasi yaratildi va database ga saqlandi. Lekin pjsip.conf faylini qo'lda yangilash kerak: ${error.message}`,
+        message: userMessage,
         config: config,
         manual: true,
+        error: errorMessage,
       };
     }
   }

@@ -422,43 +422,50 @@ const Settings = () => {
 
               <div className="form-section">
                 <h3>Yangi SIP Trunk Yaratish</h3>
+                <p className="form-description">
+                  SIP provayderni ulash uchun quyidagi ma'lumotlarni kiriting. Trunk avtomatik ravishda yaratiladi va Asterisk ga ulanadi.
+                </p>
                 <div className="form-group">
-                  <label>Trunk Nomi</label>
+                  <label>Nomi *</label>
                   <input
                     type="text"
                     value={newTrunk.name}
                     onChange={(e) => setNewTrunk({ ...newTrunk, name: e.target.value })}
-                    placeholder="Masalan: kerio-control yoki sip-provider"
+                    placeholder="Masalan: Kerio yoki SIP-Provider"
+                    required
                   />
                   <small>Trunk identifikatori (lotin harflar, tire, raqamlar)</small>
                 </div>
                 <div className="form-group">
-                  <label>Server IP yoki Domain</label>
+                  <label>Server IP yoki Domain *</label>
                   <input
                     type="text"
                     value={newTrunk.host}
                     onChange={(e) => setNewTrunk({ ...newTrunk, host: e.target.value })}
-                    placeholder="Masalan: 192.168.1.100 yoki sip.provider.com"
+                    placeholder="Masalan: 90.156.199.92 yoki sip.provider.com"
+                    required
                   />
                   <small>SIP provayder server manzili</small>
                 </div>
                 <div className="form-group">
-                  <label>Username / Login</label>
+                  <label>Login *</label>
                   <input
                     type="text"
                     value={newTrunk.username}
                     onChange={(e) => setNewTrunk({ ...newTrunk, username: e.target.value })}
                     placeholder="SIP username"
+                    required
                   />
                   <small>Provayder bergan login</small>
                 </div>
                 <div className="form-group">
-                  <label>Password / Parol</label>
+                  <label>Password *</label>
                   <input
                     type="password"
                     value={newTrunk.password}
                     onChange={(e) => setNewTrunk({ ...newTrunk, password: e.target.value })}
                     placeholder="SIP parol"
+                    required
                   />
                   <small>Provayder bergan parol</small>
                 </div>

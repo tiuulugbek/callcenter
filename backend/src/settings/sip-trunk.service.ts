@@ -175,7 +175,36 @@ match = ${data.host}
       }
     } catch (error: any) {
       this.logger.error('PJSIP config yozishda xatolik:', error);
-      throw new Error(`Fayl yozib bo'lmadi: ${error.message}. Iltimos, ruxsatlarni tekshiring.`);
+      
+      // Sudo orqali yozishga harakat qilish
+      try {
+        const { execSync } = require('child_process');
+        const tempFile = `/tmp/pjsip_${trunkName}_${Date.now()}.conf`;
+        
+        // Temp faylga yozish
+        fs.writeFileSync(tempFile, newConfig, 'utf-8');
+        
+        // Sudo orqali ko'chirish
+        execSync(`sudo cp ${tempFile} ${this.pjsipConfigPath}`, { stdio: 'inherit' });
+        execSync(`sudo chown asterisk:asterisk ${this.pjsipConfigPath}`, { stdio: 'inherit' });
+        execSync(`sudo chmod 664 ${this.pjsipConfigPath}`, { stdio: 'inherit' });
+        
+        // Temp faylni o'chirish
+        fs.unlinkSync(tempFile);
+        
+        this.logger.log(`PJSIP config sudo orqali yangilandi: ${this.pjsipConfigPath}`);
+        
+        // Asterisk ni reload qilish
+        try {
+          execSync('sudo asterisk -rx "pjsip reload"', { stdio: 'inherit' });
+          this.logger.log('Asterisk PJSIP reload qilindi');
+        } catch (reloadError) {
+          this.logger.warn('Asterisk reload xatosi:', reloadError);
+        }
+      } catch (sudoError: any) {
+        this.logger.error('Sudo orqali yozishda xatolik:', sudoError);
+        throw new Error(`Fayl yozib bo'lmadi: ${error.message}. Sudo orqali ham yozib bo'lmadi: ${sudoError.message}`);
+      }
     }
   }
 

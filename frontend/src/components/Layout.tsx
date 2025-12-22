@@ -30,6 +30,12 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
             Chatlar
           </Link>
           <Link
+            to="/contacts"
+            className={location.pathname === '/contacts' ? 'active' : ''}
+          >
+            Mijozlar
+          </Link>
+          <Link
             to="/settings"
             className={location.pathname === '/settings' ? 'active' : ''}
           >

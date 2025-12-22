@@ -36,10 +36,12 @@ model Call {
   status        String   @default("yakunlandi") // yakunlandi, javobsiz
   callId        String?  @unique @map("call_id")
   operatorId    String?  @map("operator_id")
+  contactId     String?  @map("contact_id")
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
 
   operator Operator? @relation(fields: [operatorId], references: [id])
+  contact  Contact?  @relation(fields: [contactId], references: [id])
 
   @@map("calls")
 }
@@ -49,10 +51,12 @@ model Chat {
   channel        String   // telegram, instagram, facebook
   externalUserId String   @map("external_user_id")
   userName       String?  @map("user_name")
+  contactId      String?  @map("contact_id")
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
 
   messages Message[]
+  contact  Contact? @relation(fields: [contactId], references: [id])
 
   @@unique([channel, externalUserId])
   @@map("chats")
@@ -68,5 +72,21 @@ model Message {
   chat Chat @relation(fields: [chatId], references: [id], onDelete: Cascade)
 
   @@map("messages")
+}
+
+model Contact {
+  id          String   @id @default(uuid())
+  name        String
+  phone       String?
+  email       String?
+  company     String?
+  notes       String?  @db.Text
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  calls Call[]
+  chats Chat[]
+
+  @@map("contacts")
 }
 

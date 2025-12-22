@@ -106,5 +106,48 @@ export const operatorsApi = {
   },
 }
 
+export const contactsApi = {
+  getAll: async (search?: string) => {
+    const response = await api.get('/contacts', { params: { search } })
+    return response.data
+  },
+  getById: async (id: string) => {
+    const response = await api.get(`/contacts/${id}`)
+    return response.data
+  },
+  create: async (data: {
+    name: string
+    phone?: string
+    email?: string
+    company?: string
+    notes?: string
+  }) => {
+    const response = await api.post('/contacts', data)
+    return response.data
+  },
+  update: async (id: string, data: {
+    name?: string
+    phone?: string
+    email?: string
+    company?: string
+    notes?: string
+  }) => {
+    const response = await api.put(`/contacts/${id}`, data)
+    return response.data
+  },
+  delete: async (id: string) => {
+    const response = await api.delete(`/contacts/${id}`)
+    return response.data
+  },
+  linkCall: async (contactId: string, callId: string) => {
+    const response = await api.post(`/contacts/${contactId}/link-call`, { callId })
+    return response.data
+  },
+  linkChat: async (contactId: string, chatId: string) => {
+    const response = await api.post(`/contacts/${contactId}/link-chat`, { chatId })
+    return response.data
+  },
+}
+
 export default api
 

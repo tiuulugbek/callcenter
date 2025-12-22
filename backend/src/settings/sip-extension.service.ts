@@ -187,7 +187,11 @@ password = ${password}
     // Database dan extensionlarni olish
     const operators = await this.prisma.operator.findMany({
       where: {
-        extension: { not: null },
+        extension: {
+          not: {
+            equals: null,
+          },
+        },
       },
       select: {
         id: true,

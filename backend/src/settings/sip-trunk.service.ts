@@ -109,8 +109,9 @@ export class SipTrunkService {
 [${trunkName}]
 type = aor
 contact = sip:${data.username}@${data.host}:${port}
-qualify_frequency = 0
+qualify_frequency = 60
 maximum_expiration = 3600
+qualify_timeout = 3.0
 
 [${trunkName}]
 type = endpoint

@@ -155,11 +155,23 @@ export class AsteriskService {
           this.logger.warn(`Error fetching trunk, using default: ${trunkName}`);
         }
         
-        // Trunk orqali qo'ng'iroq qilish
-        const outboundEndpoint = `PJSIP/${toNumber}@${trunkName}`;
-        this.logger.log(`Originating outbound call: ${outboundEndpoint}, From: ${fromNumber}, To: ${toNumber}`);
+        // Dialplan orqali trunk ga qo'ng'iroq qilish (yaxshiroq yechim)
+        // stasis-outbound kontekstida trunk orqali qo'ng'iroq qilamiz
+        const outboundEndpoint = `Local/${toNumber}@stasis-outbound`;
+        this.logger.log(`Originating outbound call via dialplan: ${outboundEndpoint}, From: ${fromNumber}, To: ${toNumber}, Trunk: ${trunkName}`);
         
         try {
+          // FROM_NUMBER va TO_NUMBER ni o'rnatish
+          await ari.post(`/channels/${channelId}/variable`, {
+            variable: 'FROM_NUMBER',
+            value: fromNumber,
+          });
+          await ari.post(`/channels/${channelId}/variable`, {
+            variable: 'TO_NUMBER',
+            value: toNumber,
+          });
+          
+          // Dialplan orqali trunk ga qo'ng'iroq qilish
           const outboundChannelResponse = await ari.post(`/channels`, {
             endpoint: outboundEndpoint,
             app: 'call-center',
@@ -172,7 +184,7 @@ export class AsteriskService {
           this.logger.log(`Outbound channel created: ${outboundChannelId}`);
           
           // Kichik kutish - channel to'liq yaratilishi uchun
-          await new Promise(resolve => setTimeout(resolve, 500));
+          await new Promise(resolve => setTimeout(resolve, 1000));
           
           // Ikkala channel ni bridge qilish
           try {

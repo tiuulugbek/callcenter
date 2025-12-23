@@ -123,16 +123,31 @@ export const operatorsApi = {
 
 export const kerioApi = {
   verifyAuth: async () => {
-    const response = await api.get('/kerio/auth/verify')
-    return response.data
+    try {
+      const response = await api.get('/kerio/auth/verify')
+      return response.data
+    } catch (error: any) {
+      console.error('Kerio verifyAuth error:', error)
+      throw error
+    }
   },
   syncCalls: async (params?: { startDate?: string; endDate?: string; extension?: string }) => {
-    const response = await api.post('/kerio/sync', null, { params })
-    return response.data
+    try {
+      const response = await api.post('/kerio/sync', null, { params })
+      return response.data
+    } catch (error: any) {
+      console.error('Kerio syncCalls error:', error)
+      throw error
+    }
   },
   getRecording: async (pbxCallId: string) => {
-    const response = await api.get(`/kerio/calls/${pbxCallId}/recording`)
-    return response.data
+    try {
+      const response = await api.get(`/kerio/calls/${pbxCallId}/recording`)
+      return response.data
+    } catch (error: any) {
+      console.error('Kerio getRecording error:', error)
+      throw error
+    }
   },
 }
 

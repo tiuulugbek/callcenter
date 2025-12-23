@@ -156,25 +156,15 @@ export class AsteriskService {
           this.logger.warn(`Error fetching trunk, using default: ${trunkName}`);
         }
         
-        // Dialplan orqali trunk ga qo'ng'iroq qilish
-        // outbound kontekstida trunk orqali qo'ng'iroq qilamiz
-        this.logger.log(`Preparing to dial trunk: ${trunkName}, To: ${toNumber}`);
+        // To'g'ridan-to'g'ri trunk orqali qo'ng'iroq qilish
+        // PJSIP endpoint ishlatamiz
+        const outboundEndpoint = `PJSIP/${toNumber}@${trunkName}`;
+        this.logger.log(`Originating outbound call: ${outboundEndpoint}, From: ${fromNumber}, To: ${toNumber}, Trunk: ${trunkName}`);
         
         try {
-          // Channel variable larni o'rnatish
-          await ari.post(`/channels/${channelId}/variable`, {
-            variable: 'TO_NUMBER',
-            value: toNumber,
-          });
-          
-          // Dialplan orqali trunk ga qo'ng'iroq qilish
-          // Dialplan da trunk orqali qo'ng'iroq qilish uchun Dial() ishlatiladi
-          // Lekin bizda Stasis eventidan keyin trunk ga qo'ng'iroq qilish kerak
-          // Shuning uchun yangi channel yaratamiz va bridge qilamiz
-          
-          // Trunk orqali qo'ng'iroq qilish - dialplan orqali
+          // Trunk orqali qo'ng'iroq qilish
           const outboundChannelResponse = await ari.post(`/channels`, {
-            endpoint: `Local/${toNumber}@outbound-trunk`,
+            endpoint: outboundEndpoint,
             app: 'call-center',
             appArgs: `chiquvchi,${fromNumber},${toNumber}`,
             callerId: fromNumber,
@@ -182,7 +172,7 @@ export class AsteriskService {
           });
           
           const outboundChannelId = outboundChannelResponse.data.id;
-          this.logger.log(`Outbound channel created via dialplan: ${outboundChannelId}`);
+          this.logger.log(`Outbound channel created: ${outboundChannelId}`);
           
           // Kichik kutish - channel to'liq yaratilishi uchun
           await new Promise(resolve => setTimeout(resolve, 2000));

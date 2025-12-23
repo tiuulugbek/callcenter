@@ -132,7 +132,6 @@ export class AsteriskService {
           callId,
           recordingPath,
           startTime: new Date(),
-          state: direction === 'kiruvchi' ? 'kelyapti' : 'suhbatda',
           status: 'javob berildi',
         });
 
@@ -193,7 +192,6 @@ export class AsteriskService {
         const call = await callsService.updateByCallId(callId, {
           endTime,
           status: 'yakunlandi',
-          state: 'yakunlandi',
         });
 
         if (call) {
@@ -202,7 +200,6 @@ export class AsteriskService {
           await callsService.update(call.id, {
             duration: duration > 0 ? duration : 0,
             status: 'yakunlandi',
-            state: 'yakunlandi',
           });
 
           this.logger.log(`Call record updated: ${call.id}, Duration: ${duration}s`);

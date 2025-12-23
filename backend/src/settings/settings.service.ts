@@ -106,5 +106,20 @@ export class SettingsService {
   async getSipTrunks() {
     return this.sipTrunkService.getTrunks();
   }
+
+  async updateSipTrunk(id: string, data: {
+    name?: string;
+    host?: string;
+    username?: string;
+    password?: string;
+    port?: number;
+    transport?: 'udp' | 'tcp' | 'tls';
+  }) {
+    return this.sipTrunkService.updateTrunkConfig(id, data);
+  }
+
+  async deleteSipTrunk(id: string) {
+    return this.sipTrunkService.deleteTrunkConfig(id);
+  }
 }
 

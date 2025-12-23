@@ -308,14 +308,16 @@ match = ${data.host}
         orderBy: { createdAt: 'desc' },
       });
 
-      // Password ni yashirish
+      // Password ni yashirish va ID qo'shish
       return trunks.map(trunk => ({
+        id: trunk.id,
         name: trunk.name,
         host: trunk.host,
         username: trunk.username,
         password: '••••••••', // Password yashiriladi
         port: trunk.port,
         transport: trunk.transport,
+        createdAt: trunk.createdAt,
       }));
     } catch (error) {
       this.logger.warn('Database dan trunklar o\'qib bo\'lmadi:', error);
@@ -331,6 +333,143 @@ match = ${data.host}
       }
     }
     return [];
+  }
+
+  async updateTrunkConfig(id: string, data: {
+    name?: string;
+    host?: string;
+    username?: string;
+    password?: string;
+    port?: number;
+    transport?: 'udp' | 'tcp' | 'tls';
+  }) {
+    try {
+      // Database dan trunk ni topish
+      const trunk = await this.prisma.sipTrunk.findUnique({
+        where: { id },
+      });
+
+      if (!trunk) {
+        throw new Error('Trunk topilmadi');
+      }
+
+      // Eski nomni saqlash (config dan olib tashlash uchun)
+      const oldName = trunk.name;
+
+      // Yangi ma'lumotlar bilan yangilash
+      const updateData: any = {};
+      if (data.name) updateData.name = data.name;
+      if (data.host) updateData.host = data.host;
+      if (data.username) updateData.username = data.username;
+      if (data.password) updateData.password = data.password;
+      if (data.port !== undefined) updateData.port = data.port;
+      if (data.transport) updateData.transport = data.transport;
+
+      const updatedTrunk = await this.prisma.sipTrunk.update({
+        where: { id },
+        data: updateData,
+      });
+
+      // Config faylini yangilash
+      const config = this.generateTrunkConfig({
+        name: updatedTrunk.name,
+        host: updatedTrunk.host,
+        username: updatedTrunk.username,
+        password: updatedTrunk.password,
+        port: updatedTrunk.port,
+        transport: updatedTrunk.transport as 'udp' | 'tcp' | 'tls',
+      });
+
+      // Eski config ni olib tashlash
+      await this.removeTrunkFromConfig(oldName);
+      
+      // Yangi config ni qo'shish
+      await this.updatePjsipConfig(updatedTrunk.name, config);
+
+      return {
+        success: true,
+        message: 'SIP trunk muvaffaqiyatli yangilandi',
+        trunk: {
+          id: updatedTrunk.id,
+          name: updatedTrunk.name,
+          host: updatedTrunk.host,
+          username: updatedTrunk.username,
+          password: '••••••••',
+          port: updatedTrunk.port,
+          transport: updatedTrunk.transport,
+        },
+      };
+    } catch (error: any) {
+      this.logger.error('Trunk yangilashda xatolik:', error);
+      throw new Error(`Trunk yangilashda xatolik: ${error.message}`);
+    }
+  }
+
+  async deleteTrunkConfig(id: string) {
+    try {
+      // Database dan trunk ni topish
+      const trunk = await this.prisma.sipTrunk.findUnique({
+        where: { id },
+      });
+
+      if (!trunk) {
+        throw new Error('Trunk topilmadi');
+      }
+
+      const trunkName = trunk.name;
+
+      // Database dan o'chirish
+      await this.prisma.sipTrunk.delete({
+        where: { id },
+      });
+
+      // Config faylidan olib tashlash
+      await this.removeTrunkFromConfig(trunkName);
+
+      return {
+        success: true,
+        message: 'SIP trunk muvaffaqiyatli o\'chirildi',
+      };
+    } catch (error: any) {
+      this.logger.error('Trunk o\'chirishda xatolik:', error);
+      throw new Error(`Trunk o'chirishda xatolik: ${error.message}`);
+    }
+  }
+
+  private async removeTrunkFromConfig(trunkName: string): Promise<void> {
+    try {
+      if (!fs.existsSync(this.pjsipConfigPath)) {
+        return;
+      }
+
+      const existingConfig = fs.readFileSync(this.pjsipConfigPath, 'utf-8');
+      const cleanedConfig = this.removeTrunkConfig(existingConfig, trunkName);
+
+      // Backup yaratish
+      const backupPath = `${this.pjsipConfigPath}.backup.${Date.now()}`;
+      fs.copyFileSync(this.pjsipConfigPath, backupPath);
+
+      // Yangi config ni yozish
+      fs.writeFileSync(this.pjsipConfigPath, cleanedConfig, 'utf-8');
+      this.logger.log(`Trunk ${trunkName} config dan olib tashlandi`);
+
+      // Asterisk ni reload qilish
+      try {
+        const { exec } = require('child_process');
+        exec('asterisk -rx "pjsip reload"', (error: any) => {
+          if (error) {
+            this.logger.warn('Asterisk reload xatosi:', error);
+          } else {
+            this.logger.log('Asterisk PJSIP reload qilindi');
+          }
+        });
+      } catch (reloadError) {
+        this.logger.warn('Asterisk reload qilishda xatolik:', reloadError);
+      }
+    } catch (error: any) {
+      this.logger.error('Config dan trunk olib tashlashda xatolik:', error);
+      throw error;
+    }
   }
 
   private parseTrunks(config: string): any[] {

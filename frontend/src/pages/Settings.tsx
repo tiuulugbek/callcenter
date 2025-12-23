@@ -22,6 +22,7 @@ const Settings = () => {
     port: 5060,
     transport: 'udp' as 'udp' | 'tcp' | 'tls',
   })
+  const [editingTrunk, setEditingTrunk] = useState<any | null>(null)
 
   useEffect(() => {
     // Token mavjudligini tekshirish
@@ -81,6 +82,79 @@ const Settings = () => {
     }
   }
 
+  const handleEditTrunk = (trunk: any) => {
+    setEditingTrunk({ ...trunk })
+    setNewTrunk({
+      name: trunk.name,
+      host: trunk.host,
+      username: trunk.username,
+      password: '', // Password yashirilgan, bo'sh qoldiramiz
+      port: trunk.port || 5060,
+      transport: trunk.transport || 'udp',
+    })
+  }
+
+  const handleUpdateTrunk = async () => {
+    if (!editingTrunk || !newTrunk.name || !newTrunk.host || !newTrunk.username) {
+      setMessage({ type: 'error', text: 'Barcha maydonlarni to\'ldiring' })
+      return
+    }
+    setLoading(true)
+    setMessage(null)
+    try {
+      await settingsApi.updateSipTrunk(editingTrunk.id, newTrunk)
+      await loadSipTrunks()
+      setEditingTrunk(null)
+      setMessage({
+        type: 'success',
+        text: 'SIP trunk muvaffaqiyatli yangilandi.',
+      })
+      setNewTrunk({
+        name: 'BellUZ',
+        host: 'bell.uz',
+        username: '',
+        password: '',
+        port: 5060,
+        transport: 'udp',
+      })
+    } catch (error: any) {
+      setMessage({ type: 'error', text: error.response?.data?.message || error.message || 'Xatolik yuz berdi' })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleDeleteTrunk = async (id: string) => {
+    if (!confirm('Haqiqatan ham bu trunkni o\'chirmoqchimisiz?')) {
+      return
+    }
+    setLoading(true)
+    setMessage(null)
+    try {
+      await settingsApi.deleteSipTrunk(id)
+      await loadSipTrunks()
+      setMessage({
+        type: 'success',
+        text: 'SIP trunk muvaffaqiyatli o\'chirildi.',
+      })
+    } catch (error: any) {
+      setMessage({ type: 'error', text: error.response?.data?.message || error.message || 'Xatolik yuz berdi' })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleCancelEdit = () => {
+    setEditingTrunk(null)
+    setNewTrunk({
+      name: 'BellUZ',
+      host: 'bell.uz',
+      username: '',
+      password: '',
+      port: 5060,
+      transport: 'udp',
+    })
+  }
 
   const loadSettings = async () => {
     try {
@@ -308,30 +382,73 @@ const Settings = () => {
                     <option value="tls">TLS</option>
                   </select>
                 </div>
-                <button onClick={handleCreateSipTrunk} disabled={loading} className="btn-primary">
-                  {loading ? 'Saqlanmoqda...' : 'Ma\'lumotlarni Saqlash'}
-                </button>
+                <div className="button-group">
+                  {editingTrunk ? (
+                    <>
+                      <button onClick={handleUpdateTrunk} disabled={loading} className="btn-primary">
+                        {loading ? 'Yangilanmoqda...' : 'Yangilash'}
+                      </button>
+                      <button onClick={handleCancelEdit} disabled={loading} className="btn-secondary">
+                        Bekor qilish
+                      </button>
+                    </>
+                  ) : (
+                    <button onClick={handleCreateSipTrunk} disabled={loading} className="btn-primary">
+                      {loading ? 'Saqlanmoqda...' : 'Ma\'lumotlarni Saqlash'}
+                    </button>
+                  )}
+                </div>
               </div>
 
               {sipTrunks.length > 0 && (
                 <div className="form-section">
-                  <h3>Saqlangan SIP Trunklar</h3>
-                  <table>
+                  <h3>Mavjud SIP Trunklar</h3>
+                  <table style={{ width: '100%', marginTop: '1rem' }}>
                     <thead>
                       <tr>
                         <th>Nomi</th>
                         <th>Server</th>
                         <th>Login</th>
                         <th>Port</th>
+                        <th>Transport</th>
+                        <th style={{ width: '150px' }}>Amallar</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {sipTrunks.map((trunk, index) => (
-                        <tr key={index}>
+                      {sipTrunks.map((trunk) => (
+                        <tr key={trunk.id || trunk.name}>
                           <td>{trunk.name}</td>
                           <td>{trunk.host}</td>
                           <td>{trunk.username}</td>
                           <td>{trunk.port || 5060}</td>
+                          <td>{trunk.transport || 'udp'}</td>
+                          <td>
+                            <div style={{ display: 'flex', gap: '0.5rem' }}>
+                              <button
+                                onClick={() => handleEditTrunk(trunk)}
+                                disabled={loading}
+                                className="btn-secondary"
+                                style={{ padding: '0.25rem 0.5rem', fontSize: '0.875rem' }}
+                              >
+                                Tahrirlash
+                              </button>
+                              <button
+                                onClick={() => handleDeleteTrunk(trunk.id || trunk.name)}
+                                disabled={loading}
+                                style={{ 
+                                  padding: '0.25rem 0.5rem', 
+                                  fontSize: '0.875rem', 
+                                  backgroundColor: '#dc3545', 
+                                  color: 'white', 
+                                  border: 'none',
+                                  borderRadius: '4px',
+                                  cursor: loading ? 'not-allowed' : 'pointer'
+                                }}
+                              >
+                                O'chirish
+                              </button>
+                            </div>
+                          </td>
                         </tr>
                       ))}
                     </tbody>

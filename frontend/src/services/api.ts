@@ -115,6 +115,21 @@ export const settingsApi = {
     const response = await api.post('/settings/sip-trunks', data)
     return response.data
   },
+  updateSipTrunk: async (id: string, data: {
+    name?: string
+    host?: string
+    username?: string
+    password?: string
+    port?: number
+    transport?: 'udp' | 'tcp' | 'tls'
+  }) => {
+    const response = await api.put(`/settings/sip-trunks/${id}`, data)
+    return response.data
+  },
+  deleteSipTrunk: async (id: string) => {
+    const response = await api.delete(`/settings/sip-trunks/${id}`)
+    return response.data
+  },
 }
 
 export const operatorsApi = {

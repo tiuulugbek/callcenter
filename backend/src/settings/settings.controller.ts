@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards } from '@nestjs/common';
 import { SettingsService } from './settings.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
@@ -57,6 +57,26 @@ export class SettingsController {
     transport?: 'udp' | 'tcp' | 'tls';
   }) {
     return this.settingsService.createSipTrunk(body);
+  }
+
+  @Put('sip-trunks/:id')
+  async updateSipTrunk(
+    @Param('id') id: string,
+    @Body() body: {
+      name?: string;
+      host?: string;
+      username?: string;
+      password?: string;
+      port?: number;
+      transport?: 'udp' | 'tcp' | 'tls';
+    },
+  ) {
+    return this.settingsService.updateSipTrunk(id, body);
+  }
+
+  @Delete('sip-trunks/:id')
+  async deleteSipTrunk(@Param('id') id: string) {
+    return this.settingsService.deleteSipTrunk(id);
   }
 }
 

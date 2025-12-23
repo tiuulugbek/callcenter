@@ -34,22 +34,32 @@ export class AsteriskService {
       const ari = this.getAriClient();
       const app = 'call-center';
       
+      // Format: PJSIP/number@trunk-name
+      // bell.uz trunk nomi: BellUZ
+      const trunkName = 'BellUZ'; // bell.uz trunk nomi
+      const endpoint = `PJSIP/${data.toNumber}@${trunkName}`;
+      
+      this.logger.log(`Originating call: ${endpoint}, From: ${data.fromNumber}, To: ${data.toNumber}`);
+      
       // Originate call via ARI
       const response = await ari.post(`/channels`, {
-        endpoint: `PJSIP/${data.toNumber}@trunk`,
+        endpoint: endpoint,
         app: app,
-        appArgs: `outbound,${data.fromNumber},${data.toNumber}`,
+        appArgs: `chiquvchi,${data.fromNumber},${data.toNumber}`,
         callerId: data.fromNumber,
+        timeout: 30,
       });
+
+      this.logger.log(`Call originated: ${response.data.id}`);
 
       return {
         success: true,
         channelId: response.data.id,
         message: 'Qo\'ng\'iroq boshlanmoqda',
       };
-    } catch (error) {
-      this.logger.error('Outbound call error:', error);
-      throw error;
+    } catch (error: any) {
+      this.logger.error('Outbound call error:', error.response?.data || error.message || error);
+      throw new Error(`Qo'ng'iroq boshlashda xatolik: ${error.response?.data?.message || error.message || 'Noma\'lum xatolik'}`);
     }
   }
 
@@ -85,24 +95,36 @@ export class AsteriskService {
     // Create call record via injected service
     if (callsService) {
       try {
+        const recordingPath = `/var/spool/asterisk/recordings/call_${callId}.wav`;
         const call = await callsService.create({
           direction,
           fromNumber,
           toNumber,
           callId,
-          recordingPath: `/var/spool/asterisk/recordings/call_${callId}.wav`,
+          recordingPath,
+          startTime: new Date(),
+          state: direction === 'kiruvchi' ? 'kelyapti' : 'suhbatda',
+          status: 'javob berildi',
         });
 
-        this.logger.log(`Call record created: ${call.id}`);
+        this.logger.log(`Call record created: ${call.id}, Direction: ${direction}, From: ${fromNumber}, To: ${toNumber}`);
 
         // Emit WebSocket event
-        this.wsGateway.emitIncomingCall({
-          callId: call.id,
-          fromNumber,
-          toNumber,
-          direction,
-          startTime: call.startTime,
-        });
+        if (direction === 'kiruvchi') {
+          this.wsGateway.emitIncomingCall({
+            callId: call.id,
+            fromNumber,
+            toNumber,
+            direction,
+            startTime: call.startTime.toISOString(),
+            state: 'kelyapti',
+          });
+        } else {
+          this.wsGateway.emitCallStatus({
+            callId: call.id,
+            state: 'suhbatda',
+          });
+        }
 
         return call;
       } catch (error: any) {
@@ -129,7 +151,7 @@ export class AsteriskService {
 
   async handleChannelDestroyed(event: any, callsService: any) {
     const channelId = event.channel.id;
-    const callId = event.channel.id;
+    const callId = event.channel.id || event.channel.name?.split('-')[0] || channelId;
 
     this.logger.log(`ChannelDestroyed: ${channelId}, CallId: ${callId}`);
 
@@ -137,30 +159,41 @@ export class AsteriskService {
     if (callsService) {
       try {
         const endTime = new Date();
+        
+        // Find call by callId
         const call = await callsService.updateByCallId(callId, {
           endTime,
-          status: 'tugadi',
+          status: 'yakunlandi',
+          state: 'yakunlandi',
         });
 
         if (call) {
           // Calculate duration
-          const duration = Math.floor((endTime.getTime() - call.startTime.getTime()) / 1000);
+          const duration = Math.floor((endTime.getTime() - new Date(call.startTime).getTime()) / 1000);
           await callsService.update(call.id, {
-            duration,
+            duration: duration > 0 ? duration : 0,
+            status: 'yakunlandi',
+            state: 'yakunlandi',
           });
 
           this.logger.log(`Call record updated: ${call.id}, Duration: ${duration}s`);
+          
+          // Emit WebSocket event
+          this.wsGateway.emitCallStatus({
+            callId: call.id,
+            state: 'yakunlandi',
+          });
         } else {
           this.logger.warn(`Call record not found for callId: ${callId}`);
         }
       } catch (error: any) {
-        this.logger.error('Error updating call record:', error.message || error);
+        this.logger.error('Error updating call record:', error.response?.data || error.message || error);
       }
     }
     
     this.wsGateway.emitCallStatus({
       channelId,
-      state: 'Hangup',
+      state: 'yakunlandi',
     });
   }
 }

@@ -94,6 +94,9 @@ export class SipTrunkService {
     const transport = data.transport || 'udp';
     // Mavjud transport dan foydalanish (transport-udp, transport-tcp)
     const transportName = transport === 'udp' ? 'transport-udp' : transport === 'tcp' ? 'transport-tcp' : 'transport-udp';
+    
+    // Trunk nomi - katta harflar bilan
+    const trunkName = data.name.replace(/[^a-zA-Z0-9]/g, '');
 
     return `
 ; SIP Trunk: ${data.name}

@@ -4,7 +4,7 @@ import { settingsApi, kerioApi } from '../services/api'
 import './Settings.css'
 
 const Settings = () => {
-  const [activeTab, setActiveTab] = useState<'telegram' | 'kerio'>('telegram')
+  const [activeTab, setActiveTab] = useState<'telegram' | 'kerio' | 'sip'>('telegram')
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error' | 'warning'; text: string } | null>(null)
 
@@ -17,6 +17,17 @@ const Settings = () => {
   const [kerioSyncing, setKerioSyncing] = useState(false)
   const [kerioChecking, setKerioChecking] = useState(false)
 
+  // SIP Trunk Settings
+  const [sipTrunks, setSipTrunks] = useState<any[]>([])
+  const [newTrunk, setNewTrunk] = useState({
+    name: 'BellUZ',
+    host: 'bell.uz',
+    username: '',
+    password: '',
+    port: 5060,
+    transport: 'udp' as 'udp' | 'tcp' | 'tls',
+  })
+
   useEffect(() => {
     // Token mavjudligini tekshirish
     const token = localStorage.getItem('token')
@@ -27,8 +38,54 @@ const Settings = () => {
     }
     
     loadSettings()
+    loadSipTrunks()
     checkKerioConnection()
   }, [])
+
+  const loadSipTrunks = async () => {
+    try {
+      const trunks = await settingsApi.getSipTrunks()
+      if (trunks && Array.isArray(trunks)) {
+        setSipTrunks(trunks)
+      } else {
+        setSipTrunks([])
+      }
+    } catch (error) {
+      console.error('SIP trunklar yuklashda xatolik:', error)
+      setSipTrunks([])
+    }
+  }
+
+  const handleCreateSipTrunk = async () => {
+    if (!newTrunk.name || !newTrunk.host || !newTrunk.username || !newTrunk.password) {
+      setMessage({ type: 'error', text: 'Barcha maydonlarni to\'ldiring (Nomi, Server, Login, Password)' })
+      return
+    }
+    setLoading(true)
+    setMessage(null)
+    try {
+      const result = await settingsApi.createSipTrunk(newTrunk)
+      await loadSipTrunks()
+      
+      setMessage({
+        type: 'success',
+        text: 'SIP trunk ma\'lumotlari database ga saqlandi. Asosiy sozlash Kerio Operator da bo\'ladi.',
+      })
+      
+      setNewTrunk({
+        name: 'BellUZ',
+        host: 'bell.uz',
+        username: '',
+        password: '',
+        port: 5060,
+        transport: 'udp',
+      })
+    } catch (error: any) {
+      setMessage({ type: 'error', text: error.response?.data?.message || error.message || 'Xatolik yuz berdi' })
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const checkKerioConnection = async () => {
     console.log('checkKerioConnection chaqirildi')
@@ -197,6 +254,12 @@ const Settings = () => {
             Telegram
           </button>
           <button
+            className={activeTab === 'sip' ? 'active' : ''}
+            onClick={() => setActiveTab('sip')}
+          >
+            SIP Provayder
+          </button>
+          <button
             className={activeTab === 'kerio' ? 'active' : ''}
             onClick={() => setActiveTab('kerio')}
           >
@@ -253,6 +316,146 @@ const Settings = () => {
                     {loading ? 'Saqlanmoqda...' : 'Saqlash'}
                   </button>
                 </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'sip' && (
+            <div className="settings-section">
+              <h2>SIP Provayder Sozlash (bell.uz)</h2>
+              <p className="settings-description">
+                SIP provayder ma'lumotlarini saqlash. <strong>Asosiy sozlash Kerio Operator da bo'ladi.</strong>
+              </p>
+
+              <div className="warning-box" style={{ backgroundColor: '#fff3cd', padding: '1rem', borderRadius: '8px', marginBottom: '1.5rem', border: '1px solid #ffc107' }}>
+                <h4>⚠️ Muhim Eslatma</h4>
+                <p><strong>Bu sistema faqat ma'lumotlarni saqlash uchun!</strong></p>
+                <p>Telefonlar <strong>Kerio Operator PBX</strong> ga tushadi. Bizning sistema faqat call events ni olish va ko'rsatish uchun.</p>
+                <p>Asosiy sozlash Kerio Operator Admin Panel da bo'ladi:</p>
+                <ol>
+                  <li>Kerio Operator Admin Panel ga kiring</li>
+                  <li>SIP Trunks bo'limiga o'ting</li>
+                  <li>Yangi Trunk yarating (bell.uz ma'lumotlari bilan)</li>
+                  <li>Inbound Routes sozlang</li>
+                </ol>
+              </div>
+
+              <div className="form-section">
+                <h3>SIP Provayder Ma'lumotlari</h3>
+                <p>Quyidagi ma'lumotlarni kiriting (faqat saqlash uchun):</p>
+                <div className="form-group">
+                  <label>Nomi *</label>
+                  <input
+                    type="text"
+                    value={newTrunk.name}
+                    onChange={(e) => setNewTrunk({ ...newTrunk, name: e.target.value })}
+                    placeholder="BellUZ"
+                    required
+                  />
+                </div>
+                <div className="form-group">
+                  <label>SIP Server *</label>
+                  <input
+                    type="text"
+                    value={newTrunk.host}
+                    onChange={(e) => setNewTrunk({ ...newTrunk, host: e.target.value })}
+                    placeholder="bell.uz"
+                    required
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Login *</label>
+                  <input
+                    type="text"
+                    value={newTrunk.username}
+                    onChange={(e) => setNewTrunk({ ...newTrunk, username: e.target.value })}
+                    placeholder="Sizning login"
+                    required
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Password *</label>
+                  <input
+                    type="password"
+                    value={newTrunk.password}
+                    onChange={(e) => setNewTrunk({ ...newTrunk, password: e.target.value })}
+                    placeholder="Sizning parol"
+                    required
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Port</label>
+                  <input
+                    type="number"
+                    value={newTrunk.port}
+                    onChange={(e) => setNewTrunk({ ...newTrunk, port: parseInt(e.target.value) || 5060 })}
+                    placeholder="5060"
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Transport</label>
+                  <select
+                    value={newTrunk.transport}
+                    onChange={(e) => setNewTrunk({ ...newTrunk, transport: e.target.value as 'udp' | 'tcp' | 'tls' })}
+                  >
+                    <option value="udp">UDP</option>
+                    <option value="tcp">TCP</option>
+                    <option value="tls">TLS</option>
+                  </select>
+                </div>
+                <button onClick={handleCreateSipTrunk} disabled={loading} className="btn-primary">
+                  {loading ? 'Saqlanmoqda...' : 'Ma\'lumotlarni Saqlash'}
+                </button>
+              </div>
+
+              {sipTrunks.length > 0 && (
+                <div className="form-section">
+                  <h3>Saqlangan SIP Trunklar</h3>
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Nomi</th>
+                        <th>Server</th>
+                        <th>Login</th>
+                        <th>Port</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {sipTrunks.map((trunk, index) => (
+                        <tr key={index}>
+                          <td>{trunk.name}</td>
+                          <td>{trunk.host}</td>
+                          <td>{trunk.username}</td>
+                          <td>{trunk.port || 5060}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              <div className="info-box">
+                <h4>📋 Kerio Operator da Sozlash</h4>
+                <p>Kerio Operator Admin Panel da quyidagilarni qiling:</p>
+                <ol>
+                  <li><strong>SIP Trunks</strong> bo'limiga kiring</li>
+                  <li><strong>Yangi Trunk</strong> yarating:
+                    <ul>
+                      <li>Name: <code>BellUZ</code></li>
+                      <li>Host: <code>bell.uz</code></li>
+                      <li>Username: <code>(Sizning login)</code></li>
+                      <li>Password: <code>(Sizning parol)</code></li>
+                      <li>Port: <code>5060</code></li>
+                      <li>Transport: <code>UDP</code></li>
+                    </ul>
+                  </li>
+                  <li><strong>Inbound Routes</strong> sozlang:
+                    <ul>
+                      <li>Trunk: <code>BellUZ</code></li>
+                      <li>Destination: Extension yoki Queue</li>
+                    </ul>
+                  </li>
+                </ol>
               </div>
             </div>
           )}

@@ -1,54 +1,88 @@
-# Tezkor Boshlash
+# Quick Start - To'liq PBX Setup
 
-## 1. Backend Ishga Tushirish
+## 🚀 Tezkor Boshlash
+
+### 1. Backend
 
 ```bash
-cd backend
+cd /var/www/call-center/backend
+
+# .env faylini yaratish/yangilash
+nano .env
+
+# Dependencies va build
 npm install
-cp .env.example .env
-# .env faylini tahrirlang
-npm run prisma:generate
-npm run migration:run
-npm run start:dev
+npx prisma migrate deploy
+npm run build
+
+# PM2 da ishga tushirish
+pm2 start dist/main.js --name call-center-backend
+pm2 save
 ```
 
-## 2. Frontend Ishga Tushirish
+### 2. Frontend
 
 ```bash
-cd frontend
+cd /var/www/call-center/frontend
+
+# .env faylini yaratish/yangilash
+nano .env
+# VITE_API_URL=http://crm24.soundz.uz:4000
+
+# Build
 npm install
-cp .env.example .env
-npm run dev
+npm run build
+
+# PM2 da ishga tushirish
+pm2 start npx --name call-center-frontend -- vite preview --host 0.0.0.0 --port 4001
+pm2 save
 ```
 
-## 3. Asterisk Sozlash
+### 3. Kerio Operator Sozlash
+
+**Backend .env:**
+```env
+KERIO_PBX_HOST=90.156.199.92
+KERIO_API_USERNAME=your_username
+KERIO_API_PASSWORD=your_password
+```
+
+**Frontend da:**
+1. Settings → Kerio Operator
+2. Ulanishni tekshirish
+3. Qo'ng'iroqlarni sync qilish
+
+### 4. IP Telefon Sozlash
+
+**MicroSIP:**
+- Domain: `90.156.199.92`
+- Username: `1001` (extension)
+- Password: `your_password`
+- Port: `5060`
+
+### 5. Telegram Bot
+
+**Frontend da:**
+1. Settings → Telegram
+2. Bot token kiriting
+3. Saqlash
+
+## ✅ Tekshirish
 
 ```bash
-sudo cp asterisk-config/*.conf /etc/asterisk/
-sudo systemctl restart asterisk
+# Backend
+curl http://localhost:4000/api/kerio/auth/verify
+
+# Frontend
+curl http://localhost:4001
+
+# PM2
+pm2 list
+pm2 logs
 ```
 
-## 4. Browserda Ochish
+## 📚 Batafsil Qo'llanma
 
-`http://localhost:3000` - Frontend
-`http://localhost:3001` - Backend API
-
-## Login
-
-Default operator yaratish kerak. PostgreSQL da:
-
-```sql
-INSERT INTO operators (id, name, extension, username, password, role, status)
-VALUES (
-  gen_random_uuid(),
-  'Admin',
-  '1001',
-  'admin',
-  '$2b$10$rOzJqZqZqZqZqZqZqZqZqOqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZq', -- 'admin123' paroli uchun hash
-  'admin',
-  'onlayn'
-);
-```
-
-Yoki backend kodida operator yaratish endpointini qo'shing.
-
+- `COMPLETE_PBX_SETUP.md` - To'liq qo'llanma
+- `SETUP_CHECKLIST.md` - Checklist
+- `KERIO_CTI_INTEGRATION.md` - Kerio integratsiyasi

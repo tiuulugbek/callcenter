@@ -140,6 +140,7 @@ export class AsteriskService {
       this.logger.log(`Channel ${channelId} answered`);
       
       // Agar chiquvchi qo'ng'iroq bo'lsa, trunk orqali qo'ng'iroq qilish
+      // Dialplan orqali qo'ng'iroq qilish yaxshiroq, chunki dialplan trunk ni avtomatik aniqlaydi
       if (direction === 'chiquvchi') {
         // Trunk nomini aniqlash
         let trunkName = 'SIPnomer'; // Default trunk nomi
@@ -155,15 +156,25 @@ export class AsteriskService {
           this.logger.warn(`Error fetching trunk, using default: ${trunkName}`);
         }
         
-        // To'g'ridan-to'g'ri trunk orqali qo'ng'iroq qilish
-        // PJSIP endpoint ishlatamiz
-        const outboundEndpoint = `PJSIP/${toNumber}@${trunkName}`;
-        this.logger.log(`Originating outbound call: ${outboundEndpoint}, From: ${fromNumber}, To: ${toNumber}, Trunk: ${trunkName}`);
+        // Dialplan orqali trunk ga qo'ng'iroq qilish
+        // outbound kontekstida trunk orqali qo'ng'iroq qilamiz
+        this.logger.log(`Preparing to dial trunk: ${trunkName}, To: ${toNumber}`);
         
         try {
-          // Trunk orqali qo'ng'iroq qilish
+          // Channel variable larni o'rnatish
+          await ari.post(`/channels/${channelId}/variable`, {
+            variable: 'TO_NUMBER',
+            value: toNumber,
+          });
+          
+          // Dialplan orqali trunk ga qo'ng'iroq qilish
+          // Dialplan da trunk orqali qo'ng'iroq qilish uchun Dial() ishlatiladi
+          // Lekin bizda Stasis eventidan keyin trunk ga qo'ng'iroq qilish kerak
+          // Shuning uchun yangi channel yaratamiz va bridge qilamiz
+          
+          // Trunk orqali qo'ng'iroq qilish - dialplan orqali
           const outboundChannelResponse = await ari.post(`/channels`, {
-            endpoint: outboundEndpoint,
+            endpoint: `Local/${toNumber}@outbound-trunk`,
             app: 'call-center',
             appArgs: `chiquvchi,${fromNumber},${toNumber}`,
             callerId: fromNumber,
@@ -171,10 +182,10 @@ export class AsteriskService {
           });
           
           const outboundChannelId = outboundChannelResponse.data.id;
-          this.logger.log(`Outbound channel created: ${outboundChannelId}`);
+          this.logger.log(`Outbound channel created via dialplan: ${outboundChannelId}`);
           
           // Kichik kutish - channel to'liq yaratilishi uchun
-          await new Promise(resolve => setTimeout(resolve, 1500));
+          await new Promise(resolve => setTimeout(resolve, 2000));
           
           // Ikkala channel ni bridge qilish
           try {
@@ -191,24 +202,22 @@ export class AsteriskService {
               await ari.post(`/bridges/${bridgeId}/addChannel`, { channel: channelId });
               this.logger.log(`Channel ${channelId} added to bridge ${bridgeId}`);
             } catch (addError: any) {
-              this.logger.error(`Error adding channel ${channelId} to bridge: ${addError.response?.data || addError.message}`);
+              this.logger.error(`Error adding channel ${channelId} to bridge: ${JSON.stringify(addError.response?.data || addError.message)}`);
             }
             
             try {
               await ari.post(`/bridges/${bridgeId}/addChannel`, { channel: outboundChannelId });
               this.logger.log(`Channel ${outboundChannelId} added to bridge ${bridgeId}`);
             } catch (addError: any) {
-              this.logger.error(`Error adding channel ${outboundChannelId} to bridge: ${addError.response?.data || addError.message}`);
+              this.logger.error(`Error adding channel ${outboundChannelId} to bridge: ${JSON.stringify(addError.response?.data || addError.message)}`);
             }
             
             this.logger.log(`Channels bridged successfully: ${channelId} <-> ${outboundChannelId}`);
           } catch (bridgeError: any) {
-            this.logger.error(`Error bridging channels: ${bridgeError.response?.data || bridgeError.message || bridgeError}`);
-            this.logger.error(`Bridge error details: ${JSON.stringify(bridgeError.response?.data || bridgeError)}`);
+            this.logger.error(`Error bridging channels: ${JSON.stringify(bridgeError.response?.data || bridgeError.message || bridgeError)}`);
           }
         } catch (error: any) {
-          this.logger.error(`Error originating outbound call: ${error.response?.data || error.message || error}`);
-          this.logger.error(`Error details: ${JSON.stringify(error.response?.data || error)}`);
+          this.logger.error(`Error originating outbound call: ${JSON.stringify(error.response?.data || error.message || error)}`);
           // Muammo bo'lsa ham recording ni boshlash
         }
       }

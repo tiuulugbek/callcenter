@@ -35,7 +35,6 @@ export class KerioService {
     private configService: ConfigService,
     private prisma: PrismaService,
     private callsService: CallsService,
-    @Inject(forwardRef(() => WebSocketGateway))
     private wsGateway: WebSocketGateway,
   ) {
     this.pbxHost = this.configService.get('KERIO_PBX_HOST') || '90.156.199.92';

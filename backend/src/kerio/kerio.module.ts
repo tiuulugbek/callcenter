@@ -11,7 +11,7 @@ import { WebSocketModule } from '../common/websocket/websocket.module';
     ConfigModule,
     PrismaModule,
     CallsModule,
-    forwardRef(() => WebSocketModule),
+    WebSocketModule,
   ],
   providers: [KerioService],
   controllers: [KerioController],

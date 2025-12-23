@@ -1,0 +1,159 @@
+[transport-udp]
+type = transport
+protocol = udp
+bind = 0.0.0.0
+
+[transport-tcp]
+type = transport
+protocol = tcp
+bind = 0.0.0.0
+
+; SIP Trunk Configuration
+; Bu yerda SIP trunk sozlamalarini qo'shing
+[trunk-template](!)
+type = endpoint
+context = from-external
+disallow = all
+allow = ulaw
+allow = alaw
+direct_media = no
+
+; Example SIP Trunk
+; [sip-provider]
+; type = aor
+; contact = sip:username@provider.com
+;
+; [sip-provider](trunk-template)
+; type = endpoint
+; aors = sip-provider
+; auth = sip-provider-auth
+;
+; [sip-provider-auth]
+; type = auth
+; username = username
+; password = password
+
+; Internal Extension Template
+[extension-template](!)
+type = endpoint
+context = from-internal
+disallow = all
+allow = ulaw
+allow = alaw
+direct_media = yes
+; Example Extension
+; [1001](extension-template)
+; type = aor
+; contact = sip/1001
+;
+; [1001](extension-template)
+; type = endpoint
+; aors = 1001
+; auth = 1001-auth
+;
+; [1001-auth]
+; type = auth
+; username = 1001
+; password = password123
+
+; SIP Extension: 1001
+; Generated automatically
+
+[1001]
+type = aor
+contact = sip/1001@transport-udp
+
+[1001]
+type = endpoint
+context = from-internal
+disallow = all
+allow = ulaw
+allow = alaw
+allow = g729
+direct_media = yes
+transport = transport-udp
+aors = 1001
+auth = 1001-auth
+rtp_symmetric = yes
+force_rport = yes
+rewrite_contact = yes
+
+[1001-auth]
+type = auth
+auth_type = userpass
+username = 1001
+password = Soundz2025
+
+; SIP Extension: 1002
+; Generated automatically
+
+[1002]
+type = aor
+contact = sip/1002@transport-udp
+
+[1002]
+type = endpoint
+context = from-internal
+disallow = all
+allow = ulaw
+allow = alaw
+allow = g729
+direct_media = yes
+transport = transport-udp
+aors = 1002
+auth = 1002-auth
+rtp_symmetric = yes
+force_rport = yes
+rewrite_contact = yes
+
+[1002-auth]
+type = auth
+auth_type = userpass
+username = 1002
+password = QWErty!@#456
+
+; SIP Trunk: SIPnomer
+; Generated automatically - 2025-12-23T11:02:04.445Z
+
+[SIPnomer]
+type = aor
+contact = sip:998785553322@bell.uz:5060
+qualify_frequency = 60
+qualify_timeout = 3.0
+maximum_expiration = 3600
+
+[SIPnomer]
+type = endpoint
+context = outbound
+disallow = all
+allow = ulaw
+allow = alaw
+allow = g729
+direct_media = no
+transport = transport-udp
+aors = SIPnomer
+auth = SIPnomer-auth
+outbound_auth = SIPnomer-auth
+rtp_symmetric = yes
+force_rport = yes
+rewrite_contact = yes
+trust_id_inbound = yes
+send_rpid = yes
+rtp_ipv6 = no
+use_avpf = no
+media_encryption = no
+dtmf_mode = rfc4733
+from_user = 998785553322
+from_domain = bell.uz
+
+[SIPnomer-auth]
+type = auth
+auth_type = userpass
+username = 998785553322
+password = mp3jeFJ8
+
+[SIPnomer-identify]
+type = identify
+endpoint = SIPnomer
+match = bell.uz
+

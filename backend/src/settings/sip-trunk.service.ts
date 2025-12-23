@@ -96,7 +96,11 @@ export class SipTrunkService {
     const transportName = transport === 'udp' ? 'transport-udp' : transport === 'tcp' ? 'transport-tcp' : 'transport-udp';
     
     // Trunk nomi - faqat lotin harflar, raqamlar va tire (PJSIP uchun)
-    const trunkName = data.name.replace(/[^a-zA-Z0-9-]/g, '').replace(/^-+|-+$/g, '');
+    // Bo'sh joylarni olib tashlash va faqat lotin harflar, raqamlar va tire qoldirish
+    const trunkName = data.name
+      .replace(/\s+/g, '') // Bo'sh joylarni olib tashlash
+      .replace(/[^a-zA-Z0-9-]/g, '') // Faqat lotin harflar, raqamlar va tire
+      .replace(/^-+|-+$/g, ''); // Boshida va oxirida tire bo'lmasligi kerak
 
     return `
 ; SIP Trunk: ${data.name}

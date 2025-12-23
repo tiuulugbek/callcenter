@@ -1,121 +1,156 @@
-# SIP Trunk Avtomatik Yangilash Fix
+# SIP Trunk Registratsiya Muammosini Hal Qilish
 
-## 🔍 Muammo
+## Muammo
+- Trunk "SIP nomer" nomi bilan yaratilgan, lekin registratsiya qilinmagan
+- Contact status "NonQual" - trunk to'g'ri ishlamayapti
+- OPTIONS request yaratib bo'lmayapti
 
-SIP trunk yaratilganda database ga saqlanadi, lekin `pjsip.conf` faylini avtomatik yangilay olmayapti va qo'lda qo'shish kerak deyapti.
+## Yechim
 
-## ✅ Yechim
+### 1. Trunk Nomini To'g'rilash
 
-### 1. Permissions Fix Scriptni Ishga Tushirish
+Trunk nomida bo'sh joy bo'lmasligi kerak. Settings sahifasida trunk nomini yangilang:
 
-Serverda quyidagilarni bajaring:
+**Eski nom:** `SIP nomer` ❌
+**Yangi nom:** `SIP-nomer` yoki `SIPnomer` yoki `BellUZ` ✅
 
-```bash
-ssh root@152.53.229.176
-cd /var/www/call-center
-git pull origin main
-chmod +x fix_sip_trunk_permissions.sh
-./fix_sip_trunk_permissions.sh
-```
-
-Yoki qo'lda:
+### 2. PJSIP Config ni Tekshirish
 
 ```bash
-# Backend user ni aniqlash
-BACKEND_USER=$(ps aux | grep "node.*main.js" | grep -v grep | head -1 | awk '{print $1}')
-echo "Backend user: $BACKEND_USER"
-
-# Backend user ni asterisk guruhiga qo'shish
-sudo usermod -a -G asterisk $BACKEND_USER
-
-# pjsip.conf permissions ni sozlash
-sudo chown asterisk:asterisk /etc/asterisk/pjsip.conf
-sudo chmod 664 /etc/asterisk/pjsip.conf
-
-# /etc/asterisk papkasiga yozish ruxsatini berish
-sudo chmod 775 /etc/asterisk
-
-# PM2 ni restart qilish
-pm2 restart call-center-backend
+sudo cat /etc/asterisk/pjsip.conf | grep -A 30 "SIP nomer"
 ```
 
-### 2. Backend Kodini Yangilash
+### 3. Trunk Config ni To'g'rilash
 
-Backend kodida `SipTrunkService` avtomatik ravishda:
-1. Database ga saqlaydi
-2. `pjsip.conf` faylini yangilaydi (agar permissions to'g'ri bo'lsa)
-3. Agar yozib bo'lmasa, sudo orqali yozishga harakat qiladi
-4. Asterisk ni reload qiladi
+Muammo: Trunk nomida bo'sh joy bor va bu PJSIP da muammo yaratmoqda.
 
-### 3. Frontend Formani Yaxshilash
+**Yechim 1: Trunk ni qayta yaratish (tavsiya etiladi)**
 
-Frontend da form:
-- Nomi (required)
-- Server IP yoki Domain (required)
-- Login (required)
-- Password (required)
-- Port (optional, default: 5060)
-- Transport (optional, default: UDP)
+1. Settings sahifasida eski trunk ni o'chiring
+2. Yangi trunk yarating:
+   - **Nomi**: `BellUZ` (bo'sh joy yo'q)
+   - **SIP Server**: `bell.uz`
+   - **Login**: `998785553322`
+   - **Password**: Bell.uz paroli
+   - **Port**: `5060`
+   - **Transport**: `UDP`
 
-## 🧪 Test Qilish
-
-### 1. Permissions Tekshirish
+**Yechim 2: Config ni qo'lda tuzatish**
 
 ```bash
-# Backend user asterisk guruhida ekanligini tekshiring
-groups $(ps aux | grep "node.*main.js" | grep -v grep | head -1 | awk '{print $1}')
-
-# pjsip.conf permissions ni tekshiring
-ls -la /etc/asterisk/pjsip.conf
+sudo nano /etc/asterisk/pjsip.conf
 ```
 
-### 2. SIP Trunk Yaratish
+Trunk nomini `SIP nomer` dan `SIPnomer` ga o'zgartiring:
 
-1. Browser da: `https://crm24.soundz.uz/settings`
-2. "SIP Trunk (Provayder)" tab ni oching
-3. Quyidagi ma'lumotlarni kiriting:
-   - Nomi: `Kerio`
-   - Server IP: `90.156.199.92`
-   - Login: `21441`
-   - Password: `Ni3bz8iYDTaH9qME`
-4. "Trunk Yaratish" ni bosing
+```ini
+[SIPnomer]
+type = aor
+contact = sip:998785553322@bell.uz:5060
+qualify_frequency = 60
+maximum_expiration = 3600
 
-### 3. Tekshirish
+[SIPnomer]
+type = endpoint
+context = from-external
+disallow = all
+allow = ulaw
+allow = alaw
+allow = g729
+direct_media = no
+transport = transport-udp
+aors = SIPnomer
+auth = SIPnomer-auth
+outbound_auth = SIPnomer-auth
+rtp_symmetric = yes
+force_rport = yes
+rewrite_contact = yes
+trust_id_inbound = yes
+send_rpid = yes
+
+[SIPnomer-auth]
+type = auth
+auth_type = userpass
+password = <parol>
+username = 998785553322
+```
+
+Keyin:
+```bash
+sudo asterisk -rx "pjsip reload"
+```
+
+### 4. Trunk Registratsiyasini Tekshirish
 
 ```bash
-# pjsip.conf faylida trunk ko'rinishini tekshiring
-sudo grep -A 20 "\[Kerio\]" /etc/asterisk/pjsip.conf
-
-# Asterisk da trunk holatini tekshiring
-sudo asterisk -rx "pjsip show endpoints Kerio"
+sudo asterisk -rvvv
+pjsip show endpoints
+pjsip show registrations
 ```
 
-## 📋 Checklist
+Trunk "Registered" holatida bo'lishi kerak.
 
-- [ ] Permissions fix script ishga tushirildi
-- [ ] Backend user asterisk guruhiga qo'shildi
-- [ ] pjsip.conf permissions sozlandi
-- [ ] /etc/asterisk papkasiga yozish ruxsati berildi
-- [ ] PM2 restart qilindi
-- [ ] Frontend da SIP trunk yaratildi
-- [ ] pjsip.conf faylida trunk ko'rinadi
-- [ ] Asterisk da trunk ishlayapti
+### 5. Muammo Davom Etsa
 
-## 🔧 Agar Hali Ham Muammo Bo'lsa
-
-### Manual Yozish
-
-Agar avtomatik yozish ishlamasa, backend loglarida konfiguratsiya ko'rsatiladi va uni qo'lda qo'shishingiz mumkin.
-
-### Sudo Password
-
-Agar sudo password kerak bo'lsa, `sudoers` faylini sozlang:
-
+**A. Transport tekshirish:**
 ```bash
-sudo visudo
-# Quyidagini qo'shing:
-# www-data ALL=(ALL) NOPASSWD: /bin/cp /tmp/pjsip_* /etc/asterisk/pjsip.conf
-# www-data ALL=(ALL) NOPASSWD: /bin/chown asterisk:asterisk /etc/asterisk/pjsip.conf
-# www-data ALL=(ALL) NOPASSWD: /bin/chmod 664 /etc/asterisk/pjsip.conf
-# www-data ALL=(ALL) NOPASSWD: /usr/bin/asterisk -rx *
+pjsip show transports
 ```
+
+**B. AOR tekshirish:**
+```bash
+pjsip show aors
+```
+
+**C. Auth tekshirish:**
+```bash
+pjsip show auths
+```
+
+**D. Loglarni tekshirish:**
+```bash
+sudo tail -f /var/log/asterisk/full | grep -i "SIP\|pjsip\|bell"
+```
+
+### 6. Trunk Nomini To'g'rilash (Backend Kodida)
+
+Backend kodida trunk nomini tozalash funksiyasi mavjud, lekin u faqat lotin harflar, raqamlar va tire qoldiradi. Bo'sh joylarni olib tashlaydi.
+
+**Tavsiya:** Trunk nomini yangilashda bo'sh joylarni olib tashlang:
+- `SIP nomer` → `SIPnomer` yoki `SIP-nomer`
+- Yoki `BellUZ` kabi oddiy nom ishlating
+
+### 7. Qo'ng'iroq Qilish
+
+Trunk registratsiya qilingandan keyin, dialplan da trunk nomini ishlating:
+
+```ini
+[outbound]
+exten => _998X.,1,Dial(PJSIP/${EXTEN}@SIPnomer,30)
+```
+
+Yoki yangi trunk nomi bilan:
+```ini
+[outbound]
+exten => _998X.,1,Dial(PJSIP/${EXTEN}@BellUZ,30)
+```
+
+## Tekshirish
+
+1. **Trunk holatini tekshirish:**
+   ```bash
+   pjsip show endpoints
+   # Trunk "Available" yoki "Registered" holatida bo'lishi kerak
+   ```
+
+2. **Registratsiyani tekshirish:**
+   ```bash
+   pjsip show registrations
+   # Trunk registratsiya qilinganini ko'rish kerak
+   ```
+
+3. **Qo'ng'iroq qilish:**
+   ```bash
+   # Asterisk CLI da test qilish
+   channel originate PJSIP/998901234567@SIPnomer application Playback hello-world
+   ```

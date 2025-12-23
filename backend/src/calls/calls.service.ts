@@ -61,8 +61,18 @@ export class CallsService {
     duration?: number;
     status?: string;
   }) {
-    return this.prisma.call.create({
-      data,
+    // Upsert - agar callId mavjud bo'lsa yangilash, yo'q bo'lsa yaratish
+    return this.prisma.call.upsert({
+      where: { callId: data.callId },
+      update: {
+        direction: data.direction,
+        fromNumber: data.fromNumber,
+        toNumber: data.toNumber,
+        recordingPath: data.recordingPath,
+        startTime: data.startTime,
+        status: data.status,
+      },
+      create: data,
     });
   }
 

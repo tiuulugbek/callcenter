@@ -131,11 +131,60 @@ export class AsteriskService {
     this.logger.log(`Channel caller: ${JSON.stringify(event.channel.caller)}`);
     this.logger.log(`Channel dialplan: ${JSON.stringify(event.channel.dialplan)}`);
 
-    // Answer the channel
+    // Answer the channel va trunk orqali qo'ng'iroq qilish
     try {
       const ari = this.getAriClient();
+      
+      // Channel ni answer qilish
       await ari.post(`/channels/${channelId}/answer`);
       this.logger.log(`Channel ${channelId} answered`);
+      
+      // Agar chiquvchi qo'ng'iroq bo'lsa, trunk orqali qo'ng'iroq qilish
+      if (direction === 'chiquvchi') {
+        // Trunk nomini aniqlash
+        let trunkName = 'SIPnomer'; // Default trunk nomi
+        try {
+          const trunks = await this.prisma.sipTrunk.findMany({
+            take: 1,
+            orderBy: { createdAt: 'desc' },
+          });
+          if (trunks.length > 0) {
+            trunkName = trunks[0].name.replace(/\s+/g, '').replace(/[^a-zA-Z0-9-]/g, '');
+          }
+        } catch (error: any) {
+          this.logger.warn(`Error fetching trunk, using default: ${trunkName}`);
+        }
+        
+        // Trunk orqali qo'ng'iroq qilish
+        const outboundEndpoint = `PJSIP/${toNumber}@${trunkName}`;
+        this.logger.log(`Originating outbound call: ${outboundEndpoint}, From: ${fromNumber}, To: ${toNumber}`);
+        
+        try {
+          const outboundChannel = await ari.post(`/channels`, {
+            endpoint: outboundEndpoint,
+            app: 'call-center',
+            appArgs: `chiquvchi,${fromNumber},${toNumber}`,
+            callerId: fromNumber,
+            timeout: 30,
+          });
+          
+          this.logger.log(`Outbound channel created: ${outboundChannel.data.id}`);
+          
+          // Ikkala channel ni bridge qilish
+          await ari.post(`/bridges`, {
+            type: 'mixing',
+            name: `bridge_${callId}`,
+          }).then(async (bridge: any) => {
+            const bridgeId = bridge.data.id;
+            await ari.post(`/bridges/${bridgeId}/addChannel`, { channel: channelId });
+            await ari.post(`/bridges/${bridgeId}/addChannel`, { channel: outboundChannel.data.id });
+            this.logger.log(`Channels bridged: ${channelId} <-> ${outboundChannel.data.id}`);
+          });
+        } catch (error: any) {
+          this.logger.error(`Error originating outbound call: ${error.response?.data || error.message || error}`);
+          // Muammo bo'lsa ham recording ni boshlash
+        }
+      }
       
       // Start recording
       await ari.post(`/channels/${channelId}/record`, {
@@ -153,18 +202,20 @@ export class AsteriskService {
     if (callsService) {
       try {
         const recordingPath = `/var/spool/asterisk/recordings/call_${callId}.wav`;
+        
         // Upsert ishlatamiz - bu 409 Conflict muammosini hal qiladi
+        // Agar callId null bo'lsa, unique constraint muammosi bo'lmasligi uchun
         const call = await callsService.create({
           direction,
           fromNumber,
           toNumber,
-          callId,
+          callId: callId || channelId, // Agar callId null bo'lsa, channelId ni ishlatamiz
           recordingPath,
           startTime: new Date(),
           status: 'javob berildi',
         });
 
-        this.logger.log(`Call record created: ${call.id}, Direction: ${direction}, From: ${fromNumber}, To: ${toNumber}`);
+        this.logger.log(`Call record created/updated: ${call.id}, CallId: ${call.callId}, Direction: ${direction}, From: ${fromNumber}, To: ${toNumber}`);
 
         // Emit WebSocket event
         if (direction === 'kiruvchi') {

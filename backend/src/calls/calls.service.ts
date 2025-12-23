@@ -62,18 +62,47 @@ export class CallsService {
     status?: string;
   }) {
     // Upsert - agar callId mavjud bo'lsa yangilash, yo'q bo'lsa yaratish
-    return this.prisma.call.upsert({
-      where: { callId: data.callId },
-      update: {
-        direction: data.direction,
-        fromNumber: data.fromNumber,
-        toNumber: data.toNumber,
-        recordingPath: data.recordingPath,
-        startTime: data.startTime,
-        status: data.status,
-      },
-      create: data,
-    });
+    // Agar callId null bo'lsa, oddiy create ishlatamiz
+    if (!data.callId) {
+      return this.prisma.call.create({ data });
+    }
+    
+    try {
+      return await this.prisma.call.upsert({
+        where: { callId: data.callId },
+        update: {
+          direction: data.direction,
+          fromNumber: data.fromNumber,
+          toNumber: data.toNumber,
+          recordingPath: data.recordingPath,
+          startTime: data.startTime,
+          status: data.status,
+        },
+        create: data,
+      });
+    } catch (error: any) {
+      // Agar upsert ishlamasa (masalan, unique constraint muammosi), oddiy create ishlatamiz
+      if (error.code === 'P2002' || error.message?.includes('Unique constraint')) {
+        // CallId allaqachon mavjud, yangilash
+        const existingCall = await this.prisma.call.findUnique({
+          where: { callId: data.callId },
+        });
+        if (existingCall) {
+          return this.prisma.call.update({
+            where: { id: existingCall.id },
+            data: {
+              direction: data.direction,
+              fromNumber: data.fromNumber,
+              toNumber: data.toNumber,
+              recordingPath: data.recordingPath,
+              startTime: data.startTime,
+              status: data.status,
+            },
+          });
+        }
+      }
+      throw error;
+    }
   }
 
   async update(id: string, data: {

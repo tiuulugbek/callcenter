@@ -14,6 +14,21 @@ api.interceptors.request.use((config) => {
   return config
 })
 
+// Response interceptor - 401 xatolikda login sahifasiga redirect
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      // Token eskirgan yoki noto'g'ri
+      localStorage.removeItem('token')
+      localStorage.removeItem('user')
+      // Login sahifasiga redirect
+      window.location.href = '/login'
+    }
+    return Promise.reject(error)
+  }
+)
+
 export const authApi = {
   login: async (username: string, password: string) => {
     const response = await api.post('/auth/login', { username, password })

@@ -239,10 +239,9 @@ export class AsteriskService {
               this.logger.log(`Trying dialplan endpoint: ${dialplanEndpoint}`);
               
               // Yangi channel yaratish va variable larni o'rnatish
+              // MUHIM: app parametri bo'lmasligi kerak, chunki dialplan da Stasis yo'q
               const dialplanResponse = await ari.post(`/channels`, {
                 endpoint: dialplanEndpoint,
-                app: 'call-center',
-                appArgs: `chiquvchi,${fromNumber},${toNumber}`,
                 callerId: fromNumber,
                 timeout: 30,
                 variables: {

@@ -1,21 +1,16 @@
 import { useState, useEffect } from 'react'
 import Layout from '../components/Layout'
-import { settingsApi, kerioApi } from '../services/api'
+import { settingsApi } from '../services/api'
 import './Settings.css'
 
 const Settings = () => {
-  const [activeTab, setActiveTab] = useState<'telegram' | 'kerio' | 'sip'>('telegram')
+  const [activeTab, setActiveTab] = useState<'telegram' | 'sip'>('telegram')
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error' | 'warning'; text: string } | null>(null)
 
   // Telegram Settings
   const [telegramToken, setTelegramToken] = useState('')
   const [telegramWebhook, setTelegramWebhook] = useState('')
-
-  // Kerio Operator Settings
-  const [kerioConnected, setKerioConnected] = useState(false)
-  const [kerioSyncing, setKerioSyncing] = useState(false)
-  const [kerioChecking, setKerioChecking] = useState(false)
 
   // SIP Trunk Settings
   const [sipTrunks, setSipTrunks] = useState<any[]>([])
@@ -39,7 +34,6 @@ const Settings = () => {
     
     loadSettings()
     loadSipTrunks()
-    checkKerioConnection()
   }, [])
 
   const loadSipTrunks = async () => {
@@ -64,12 +58,12 @@ const Settings = () => {
     setLoading(true)
     setMessage(null)
     try {
-      const result = await settingsApi.createSipTrunk(newTrunk)
+      await settingsApi.createSipTrunk(newTrunk)
       await loadSipTrunks()
       
       setMessage({
         type: 'success',
-        text: 'SIP trunk ma\'lumotlari database ga saqlandi. Asosiy sozlash Kerio Operator da bo\'ladi.',
+        text: 'SIP trunk ma\'lumotlari database ga saqlandi va Asterisk ga avtomatik sozlandi.',
       })
       
       setNewTrunk({
@@ -87,82 +81,6 @@ const Settings = () => {
     }
   }
 
-  const checkKerioConnection = async () => {
-    console.log('checkKerioConnection chaqirildi')
-    setKerioChecking(true)
-    setMessage(null)
-    
-    try {
-      console.log('Kerio Operator ulanishini tekshirish...')
-      console.log('API URL:', import.meta.env.VITE_API_URL || 'http://localhost:4000')
-      
-      const result = await kerioApi.verifyAuth()
-      console.log('Kerio Operator javob:', result)
-      
-      setKerioConnected(result.authenticated)
-      
-      if (result.authenticated) {
-        setMessage({
-          type: 'success',
-          text: 'Kerio Operator ga muvaffaqiyatli ulandi',
-        })
-      } else {
-        setMessage({
-          type: 'warning',
-          text: result.message || 'Kerio Operator ga ulanib bo\'lmadi. Backend .env faylida KERIO_API_USERNAME va KERIO_API_PASSWORD ni tekshiring.',
-        })
-      }
-    } catch (error: any) {
-      console.error('Kerio connection check error:', error)
-      console.error('Error details:', {
-        message: error.message,
-        response: error.response,
-        status: error.response?.status,
-        data: error.response?.data,
-      })
-      
-      setKerioConnected(false)
-      
-      let errorMessage = 'Kerio Operator ga ulanib bo\'lmadi'
-      if (error.response?.data?.message) {
-        errorMessage += `: ${error.response.data.message}`
-      } else if (error.message) {
-        errorMessage += `: ${error.message}`
-      } else {
-        errorMessage += ': Noma\'lum xatolik'
-      }
-      
-      setMessage({
-        type: 'error',
-        text: errorMessage,
-      })
-    } finally {
-      setKerioChecking(false)
-      console.log('checkKerioConnection tugadi')
-    }
-  }
-
-  const handleSyncKerio = async () => {
-    setKerioSyncing(true)
-    setMessage(null)
-    try {
-      console.log('Kerio Operator qo\'ng\'iroqlarni sync qilish...')
-      const result = await kerioApi.syncCalls()
-      console.log('Sync javob:', result)
-      setMessage({
-        type: 'success',
-        text: result.message || 'Qo\'ng\'iroqlar muvaffaqiyatli yangilandi',
-      })
-    } catch (error: any) {
-      console.error('Sync error:', error)
-      setMessage({
-        type: 'error',
-        text: error.response?.data?.message || error.message || 'Sync qilishda xatolik yuz berdi',
-      })
-    } finally {
-      setKerioSyncing(false)
-    }
-  }
 
   const loadSettings = async () => {
     try {
@@ -259,12 +177,6 @@ const Settings = () => {
           >
             SIP Provayder
           </button>
-          <button
-            className={activeTab === 'kerio' ? 'active' : ''}
-            onClick={() => setActiveTab('kerio')}
-          >
-            Kerio Operator
-          </button>
         </div>
 
         <div className="settings-content">
@@ -324,20 +236,13 @@ const Settings = () => {
             <div className="settings-section">
               <h2>SIP Provayder Sozlash (bell.uz)</h2>
               <p className="settings-description">
-                SIP provayder ma'lumotlarini saqlash. <strong>Asosiy sozlash Kerio Operator da bo'ladi.</strong>
+                SIP provayder ma'lumotlarini kiriting. Ma'lumotlar database ga saqlanadi va Asterisk ga avtomatik sozlanadi.
               </p>
 
-              <div className="warning-box" style={{ backgroundColor: '#fff3cd', padding: '1rem', borderRadius: '8px', marginBottom: '1.5rem', border: '1px solid #ffc107' }}>
-                <h4>⚠️ Muhim Eslatma</h4>
-                <p><strong>Bu sistema faqat ma'lumotlarni saqlash uchun!</strong></p>
-                <p>Telefonlar <strong>Kerio Operator PBX</strong> ga tushadi. Bizning sistema faqat call events ni olish va ko'rsatish uchun.</p>
-                <p>Asosiy sozlash Kerio Operator Admin Panel da bo'ladi:</p>
-                <ol>
-                  <li>Kerio Operator Admin Panel ga kiring</li>
-                  <li>SIP Trunks bo'limiga o'ting</li>
-                  <li>Yangi Trunk yarating (bell.uz ma'lumotlari bilan)</li>
-                  <li>Inbound Routes sozlang</li>
-                </ol>
+              <div className="info-box" style={{ backgroundColor: '#d1ecf1', padding: '1rem', borderRadius: '8px', marginBottom: '1.5rem', border: '1px solid #bee5eb' }}>
+                <h4>ℹ️ Ma'lumot</h4>
+                <p><strong>Asterisk PBX</strong> orqali barcha qo'ng'iroqlar boshqariladi.</p>
+                <p>Ma'lumotlarni kiriting va "Ma'lumotlarni Saqlash" tugmasini bosing. Trunk avtomatik Asterisk ga sozlanadi.</p>
               </div>
 
               <div className="form-section">
@@ -435,83 +340,17 @@ const Settings = () => {
               )}
 
               <div className="info-box">
-                <h4>📋 Kerio Operator da Sozlash</h4>
-                <p>Kerio Operator Admin Panel da quyidagilarni qiling:</p>
-                <ol>
-                  <li><strong>SIP Trunks</strong> bo'limiga kiring</li>
-                  <li><strong>Yangi Trunk</strong> yarating:
-                    <ul>
-                      <li>Name: <code>BellUZ</code></li>
-                      <li>Host: <code>bell.uz</code></li>
-                      <li>Username: <code>(Sizning login)</code></li>
-                      <li>Password: <code>(Sizning parol)</code></li>
-                      <li>Port: <code>5060</code></li>
-                      <li>Transport: <code>UDP</code></li>
-                    </ul>
-                  </li>
-                  <li><strong>Inbound Routes</strong> sozlang:
-                    <ul>
-                      <li>Trunk: <code>BellUZ</code></li>
-                      <li>Destination: Extension yoki Queue</li>
-                    </ul>
-                  </li>
-                </ol>
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'kerio' && (
-            <div className="settings-section">
-              <h2>Kerio Operator Integratsiyasi</h2>
-              <p className="settings-description">
-                Kerio Operator PBX dan qo'ng'iroq ma'lumotlarini olish va boshqarish uchun sozlang.
-              </p>
-
-              <div className={`info-box kerio-status ${kerioConnected ? 'connected' : 'disconnected'}`}>
-                <h4>Ulanish holati: {kerioConnected ? '✅ Ulandi' : '❌ Ulanmadi'}</h4>
-                {!kerioConnected && (
-                  <p>Kerio Operator ga ulanib bo'lmadi. Iltimos, sozlamalarni tekshiring va backend .env faylini yangilang.</p>
-                )}
-                <button
-                  onClick={(e) => {
-                    e.preventDefault()
-                    console.log('Tekshirish tugmasi bosildi')
-                    checkKerioConnection()
-                  }}
-                  disabled={kerioChecking || loading}
-                  className="btn-secondary"
-                  style={{ marginTop: '1rem', cursor: kerioChecking || loading ? 'not-allowed' : 'pointer' }}
-                >
-                  {kerioChecking ? 'Tekshirilmoqda...' : 'Tekshirish'}
-                </button>
-              </div>
-
-              <div className="form-section">
-                <h3>Qo'ng'iroqlarni Sync Qilish</h3>
-                <p>Kerio Operator dan qo'ng'iroq ma'lumotlarini hozir sync qilish:</p>
-                <button
-                  onClick={handleSyncKerio}
-                  disabled={kerioSyncing || !kerioConnected}
-                  className="btn-primary"
-                >
-                  {kerioSyncing ? 'Sync qilinmoqda...' : 'Qo\'ng\'iroqlarni Sync Qilish'}
-                </button>
-              </div>
-
-              <div className="info-box">
-                <h4>⚠️ Muhim Eslatma</h4>
-                <p>Kerio Operator sozlamalarini backend <code>.env</code> faylida quyidagilarni o'rnating:</p>
+                <h4>📋 Asterisk Sozlash</h4>
+                <p>Ma'lumotlar saqlangandan keyin Asterisk avtomatik sozlanadi. Tekshirish:</p>
                 <pre>
                   <code>
-                    KERIO_PBX_HOST=90.156.199.92<br/>
-                    KERIO_API_USERNAME=your_kerio_api_username<br/>
-                    KERIO_API_PASSWORD=your_kerio_api_password<br/>
-                    KERIO_SYNC_INTERVAL=5<br/>
-                    KERIO_POLL_INTERVAL=2
+                    sudo asterisk -rvvv<br/>
+                    pjsip show endpoints<br/>
+                    pjsip show registrations
                   </code>
                 </pre>
-                <p>Sozlamalarni o'zgartirgandan keyin backend ni qayta ishga tushiring:</p>
-                <pre><code>pm2 restart call-center-backend</code></pre>
+                <p>Agar trunk ulanmagan bo'lsa, Asterisk ni reload qiling:</p>
+                <pre><code>sudo asterisk -rx "pjsip reload"</code></pre>
               </div>
             </div>
           )}

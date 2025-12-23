@@ -1,17 +1,17 @@
 #!/bin/bash
 
-# Force Build Script
+# Oddiy Build Script (Xatoliksiz)
 
 set -e
 
 cd /var/www/call-center/backend
 
 echo "=========================================="
-echo "Force Build"
+echo "Backend Build"
 echo "=========================================="
 
-# 1. To'liq clean
-echo "1. To'liq clean..."
+# 1. Clean
+echo "1. Clean..."
 rm -rf dist
 rm -rf node_modules/.cache
 rm -f tsconfig.tsbuildinfo
@@ -24,11 +24,9 @@ npm install
 echo "3. Prisma generate..."
 npx prisma generate
 
-# 4. NestJS build
-echo "4. NestJS build..."
-npx nest build 2>&1 | tee build-verbose.log
-# Yoki npm run build
-# npm run build 2>&1 | tee build-verbose.log
+# 4. Build
+echo "4. Build..."
+npm run build 2>&1 | tee build.log
 
 # 5. Tekshirish
 echo "5. Tekshirish..."
@@ -37,17 +35,23 @@ if [ -f "dist/main.js" ]; then
     ls -lh dist/main.js
     echo ""
     echo "Dist papka ichida:"
-    ls -la dist/
+    ls -la dist/ | head -20
 else
     echo "❌ Build muvaffaqiyatsiz!"
     echo ""
     echo "Build log:"
-    cat build-verbose.log | tail -50
+    cat build.log | tail -50
     echo ""
-    echo "Dist papka ichida:"
-    ls -la dist/ 2>/dev/null || echo "Dist papka yo'q"
+    if [ -d "dist" ]; then
+        echo "Dist papka ichida:"
+        ls -la dist/
+    else
+        echo "Dist papka yo'q"
+    fi
     exit 1
 fi
 
+echo "=========================================="
+echo "Build tugadi!"
 echo "=========================================="
 

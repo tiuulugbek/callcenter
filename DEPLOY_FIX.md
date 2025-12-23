@@ -1,69 +1,108 @@
-# Deploy Script Permission Fix
+# 401 Unauthorized va Cache Muammosini Hal Qilish
 
 ## Muammo
+- 401 Unauthorized xatosi
+- Eski ma'lumotlar ko'rsatilmoqda
+- Frontend cache muammosi
+
+## Yechim - Serverni SSH orqali ulang va quyidagi buyruqlarni bajaring:
+
+### 1. Git pull qilish:
 
 ```bash
-./deploy.sh: Permission denied
-```
-
-## Yechim
-
-### 1. Serverda Execute Permission Berish
-
-```bash
-ssh root@152.53.229.176
-cd /var/www/call-center
-chmod +x deploy.sh
-./deploy.sh
-```
-
-### 2. Yoki Qo'lda Deploy
-
-```bash
-# 1. Git pull
 cd /var/www/call-center
 git pull origin main
+```
 
-# 2. Backend
-cd backend
-npm install
-npm run prisma:generate
-npm run build
+### 2. Frontend cache ni tozalash va rebuild qilish:
 
-# PM2 restart (to'g'ri path bilan)
-if [ -f "dist/main.js" ]; then
-    pm2 restart call-center-backend || pm2 start dist/main.js --name call-center-backend
-elif [ -f "dist/src/main.js" ]; then
-    pm2 restart call-center-backend || pm2 start dist/src/main.js --name call-center-backend
-fi
+```bash
+# Frontend build papkasini tozalash
+rm -rf frontend/dist
+rm -rf frontend/node_modules/.vite
 
-cd ..
-
-# 3. Frontend
+# Frontend dependencies
 cd frontend
 npm install
+
+# Frontend build (yangi cache busting bilan)
 npm run build
-mkdir -p /var/www/crm24
-cp -r dist/* /var/www/crm24/
-chown -R www-data:www-data /var/www/crm24
+
 cd ..
 ```
 
-### 3. Deploy Scriptni Avtomatik Permission Berish
-
-Agar deploy scriptni GitHub dan pull qilgandan keyin avtomatik permission berishni xohlasangiz:
+### 3. Backend .env faylini yangilash:
 
 ```bash
-# Serverda
-cd /var/www/call-center
-git pull origin main
-chmod +x deploy.sh
-./deploy.sh
+cd backend
+
+# .env faylida quyidagilar bo'lishi kerak:
+# FRONTEND_URL=https://crm24.soundz.uz
+# PORT=4000
+
+# Agar yo'q bo'lsa, qo'shing:
+echo "FRONTEND_URL=https://crm24.soundz.uz" >> .env
+
+cd ..
 ```
 
-Yoki bir qatorda:
+### 4. PM2 restart:
 
 ```bash
-cd /var/www/call-center && git pull origin main && chmod +x deploy.sh && ./deploy.sh
+pm2 restart ecosystem.config.js
+pm2 list
 ```
 
+### 5. Browser cache ni tozalash:
+
+**Windows/Linux:** `Ctrl + Shift + R` yoki `Ctrl + F5`
+**Mac:** `Cmd + Shift + R`
+
+Yoki Browser DevTools:
+1. F12 ni bosing
+2. Network tab ni oching
+3. "Disable cache" ni belgilang
+4. Sahifani yangilang
+
+## Tekshirish:
+
+1. Browser console da (F12):
+   ```javascript
+   // Token tekshirish
+   localStorage.getItem('token')
+   
+   // API URL tekshirish
+   console.log('API URL:', import.meta.env.VITE_API_URL)
+   ```
+
+2. Network tab da:
+   - Settings sahifasiga kiring
+   - API so'rovlarini tekshiring
+   - URL: `https://crm24.soundz.uz/settings` bo'lishi kerak
+   - Authorization header da token bo'lishi kerak
+   - 200 OK status bo'lishi kerak
+
+3. Backend loglarini tekshirish:
+   ```bash
+   pm2 logs call-center-backend --lines 50
+   ```
+
+4. Frontend loglarini tekshirish:
+   ```bash
+   pm2 logs call-center-frontend --lines 50
+   ```
+
+## Muammo davom etsa:
+
+1. **Token muammosi bo'lsa:**
+   - Login sahifasiga qaytib, qayta login qiling
+   - Token yangilanadi
+
+2. **CORS muammosi bo'lsa:**
+   - Backend .env da `FRONTEND_URL=https://crm24.soundz.uz` bo'lishi kerak
+   - Backend ni restart qiling: `pm2 restart call-center-backend`
+
+3. **Eski ma'lumotlar ko'rsatilsa:**
+   - Browser cache ni to'liq tozalang
+   - Hard refresh qiling (Ctrl+Shift+R)
+   - Yoki browser ni to'liq yoping va qayta oching

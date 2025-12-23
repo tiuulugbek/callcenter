@@ -1,0 +1,11 @@
+[general]
+enabled = yes
+pretty = yes
+auth_realm = Asterisk
+allowed_origins = localhost,127.0.0.1,::1
+
+[backend]
+type = user
+read_only = no
+password = CallCenter2025
+

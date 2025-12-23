@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
 import { WebSocketGateway } from '../common/websocket/websocket.gateway';
+import { PrismaService } from '../common/prisma/prisma.service';
 
 @Injectable()
 export class AsteriskService {
@@ -13,6 +14,7 @@ export class AsteriskService {
   constructor(
     private configService: ConfigService,
     private wsGateway: WebSocketGateway,
+    private prisma: PrismaService,
   ) {
     this.ariUrl = this.configService.get('ASTERISK_ARI_URL') || 'http://localhost:8088/ari';
     this.ariUsername = this.configService.get('ASTERISK_ARI_USERNAME') || 'backend';
@@ -40,9 +42,7 @@ export class AsteriskService {
       // Agar trunk nomi berilmagan bo'lsa, database dan birinchi faol trunk ni topish
       if (!trunkName) {
         try {
-          const { PrismaService } = await import('../common/prisma/prisma.service');
-          const prisma = new PrismaService();
-          const trunks = await prisma.sipTrunk.findMany({
+          const trunks = await this.prisma.sipTrunk.findMany({
             take: 1,
             orderBy: { createdAt: 'desc' },
           });
@@ -56,19 +56,20 @@ export class AsteriskService {
             trunkName = 'SIPnomer';
             this.logger.warn(`No trunk found in database, using default: ${trunkName}`);
           }
-        } catch (error) {
+        } catch (error: any) {
           // Default trunk nomi
           trunkName = 'SIPnomer';
-          this.logger.warn(`Error fetching trunk from database, using default: ${trunkName}`);
+          this.logger.warn(`Error fetching trunk from database, using default: ${trunkName}, error: ${error.message}`);
         }
       }
       
-      // Format: PJSIP/number@trunk-name
-      const endpoint = `PJSIP/${data.toNumber}@${trunkName}`;
+      // Format: Local/number@context - dialplan orqali qo'ng'iroq qilish
+      // Bu yaxshiroq, chunki dialplan trunk ni avtomatik aniqlaydi va Stasis orqali boshqaradi
+      const endpoint = `Local/${data.toNumber}@outbound`;
       
       this.logger.log(`Originating call: ${endpoint}, From: ${data.fromNumber}, To: ${data.toNumber}, Trunk: ${trunkName}`);
       
-      // Originate call via ARI
+      // Originate call via ARI (dialplan orqali)
       const response = await ari.post(`/channels`, {
         endpoint: endpoint,
         app: app,

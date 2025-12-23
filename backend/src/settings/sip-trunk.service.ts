@@ -109,12 +109,12 @@ export class SipTrunkService {
 [${trunkName}]
 type = aor
 contact = sip:${data.username}@${data.host}:${port}
-qualify_frequency = 60
+qualify_frequency = 0
 maximum_expiration = 3600
 
 [${trunkName}]
 type = endpoint
-context = from-external
+context = outbound
 disallow = all
 allow = ulaw
 allow = alaw
@@ -133,6 +133,8 @@ rtp_ipv6 = no
 use_avpf = no
 media_encryption = no
 dtmf_mode = rfc4733
+from_user = ${data.username}
+from_domain = ${data.host}
 
 [${trunkName}-auth]
 type = auth

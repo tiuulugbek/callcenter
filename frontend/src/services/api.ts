@@ -20,10 +20,13 @@ api.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       // Token eskirgan yoki noto'g'ri
+      console.warn('401 Unauthorized - Token eskirgan yoki noto\'g\'ri')
       localStorage.removeItem('token')
       localStorage.removeItem('user')
-      // Login sahifasiga redirect
-      window.location.href = '/login'
+      // Faqat login sahifasida bo'lmasa redirect qilish
+      if (window.location.pathname !== '/login') {
+        window.location.href = '/login'
+      }
     }
     return Promise.reject(error)
   }
@@ -124,10 +127,18 @@ export const operatorsApi = {
 export const kerioApi = {
   verifyAuth: async () => {
     try {
+      console.log('kerioApi.verifyAuth chaqirildi')
+      console.log('API URL:', API_URL)
+      console.log('Token:', localStorage.getItem('token') ? 'Mavjud' : 'Yo\'q')
+      
       const response = await api.get('/kerio/auth/verify')
+      console.log('kerioApi.verifyAuth javob:', response.data)
       return response.data
     } catch (error: any) {
       console.error('Kerio verifyAuth error:', error)
+      console.error('Error response:', error.response)
+      console.error('Error status:', error.response?.status)
+      console.error('Error data:', error.response?.data)
       throw error
     }
   },

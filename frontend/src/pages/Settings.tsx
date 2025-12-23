@@ -18,18 +18,32 @@ const Settings = () => {
   const [kerioChecking, setKerioChecking] = useState(false)
 
   useEffect(() => {
+    // Token mavjudligini tekshirish
+    const token = localStorage.getItem('token')
+    if (!token) {
+      // Token yo'q bo'lsa, login sahifasiga redirect
+      window.location.href = '/login'
+      return
+    }
+    
     loadSettings()
     checkKerioConnection()
   }, [])
 
   const checkKerioConnection = async () => {
+    console.log('checkKerioConnection chaqirildi')
     setKerioChecking(true)
     setMessage(null)
+    
     try {
       console.log('Kerio Operator ulanishini tekshirish...')
+      console.log('API URL:', import.meta.env.VITE_API_URL || 'http://localhost:4000')
+      
       const result = await kerioApi.verifyAuth()
       console.log('Kerio Operator javob:', result)
+      
       setKerioConnected(result.authenticated)
+      
       if (result.authenticated) {
         setMessage({
           type: 'success',
@@ -43,13 +57,31 @@ const Settings = () => {
       }
     } catch (error: any) {
       console.error('Kerio connection check error:', error)
+      console.error('Error details:', {
+        message: error.message,
+        response: error.response,
+        status: error.response?.status,
+        data: error.response?.data,
+      })
+      
       setKerioConnected(false)
+      
+      let errorMessage = 'Kerio Operator ga ulanib bo\'lmadi'
+      if (error.response?.data?.message) {
+        errorMessage += `: ${error.response.data.message}`
+      } else if (error.message) {
+        errorMessage += `: ${error.message}`
+      } else {
+        errorMessage += ': Noma\'lum xatolik'
+      }
+      
       setMessage({
         type: 'error',
-        text: `Kerio Operator ga ulanib bo'lmadi: ${error.response?.data?.message || error.message || 'Noma\'lum xatolik'}`,
+        text: errorMessage,
       })
     } finally {
       setKerioChecking(false)
+      console.log('checkKerioConnection tugadi')
     }
   }
 
@@ -80,8 +112,14 @@ const Settings = () => {
       const settings = await settingsApi.getSettings()
       setTelegramToken(settings.telegram?.botToken || '')
       setTelegramWebhook(settings.telegram?.webhookUrl || '')
-    } catch (error) {
+    } catch (error: any) {
       console.error('Settings yuklashda xatolik:', error)
+      // 401 xatolik bo'lsa, login sahifasiga redirect
+      if (error.response?.status === 401) {
+        localStorage.removeItem('token')
+        localStorage.removeItem('user')
+        window.location.href = '/login'
+      }
     }
   }
 
@@ -232,10 +270,14 @@ const Settings = () => {
                   <p>Kerio Operator ga ulanib bo'lmadi. Iltimos, sozlamalarni tekshiring va backend .env faylini yangilang.</p>
                 )}
                 <button
-                  onClick={checkKerioConnection}
+                  onClick={(e) => {
+                    e.preventDefault()
+                    console.log('Tekshirish tugmasi bosildi')
+                    checkKerioConnection()
+                  }}
                   disabled={kerioChecking || loading}
                   className="btn-secondary"
-                  style={{ marginTop: '1rem' }}
+                  style={{ marginTop: '1rem', cursor: kerioChecking || loading ? 'not-allowed' : 'pointer' }}
                 >
                   {kerioChecking ? 'Tekshirilmoqda...' : 'Tekshirish'}
                 </button>

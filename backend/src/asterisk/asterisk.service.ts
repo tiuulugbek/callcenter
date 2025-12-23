@@ -234,31 +234,47 @@ export class AsteriskService {
             this.logger.warn(`PJSIP endpoint failed, trying dialplan approach...`);
             try {
               // Dialplan orqali qo'ng'iroq qilish
+              // Local channel yaratish va variable larni o'rnatish
               const dialplanEndpoint = `Local/${toNumber}@outbound-trunk`;
               this.logger.log(`Trying dialplan endpoint: ${dialplanEndpoint}`);
               
-              // Channel variable larni o'rnatish
-              await ari.post(`/channels/${channelId}/variable`, {
-                variable: 'FROM_NUMBER',
-                value: fromNumber,
-              });
-              await ari.post(`/channels/${channelId}/variable`, {
-                variable: 'TO_NUMBER',
-                value: toNumber,
-              });
-              
+              // Yangi channel yaratish va variable larni o'rnatish
               const dialplanResponse = await ari.post(`/channels`, {
                 endpoint: dialplanEndpoint,
                 app: 'call-center',
                 appArgs: `chiquvchi,${fromNumber},${toNumber}`,
                 callerId: fromNumber,
                 timeout: 30,
+                variables: {
+                  FROM_NUMBER: fromNumber,
+                  TO_NUMBER: toNumber,
+                },
               });
               
               outboundChannelId = dialplanResponse.data.id;
               this.logger.log(`Outbound channel created via dialplan: ${outboundChannelId}`);
               
-              await new Promise(resolve => setTimeout(resolve, 2000));
+              // Channel holatini kuzatish
+              let channelReady = false;
+              for (let i = 0; i < 10; i++) {
+                try {
+                  const channelInfo = await ari.get(`/channels/${outboundChannelId}`);
+                  const state = channelInfo.data.state;
+                  this.logger.log(`Channel ${outboundChannelId} state: ${state}`);
+                  if (state === 'Up' || state === 'Ring') {
+                    channelReady = true;
+                    break;
+                  }
+                  await new Promise(resolve => setTimeout(resolve, 500));
+                } catch (checkError: any) {
+                  this.logger.warn(`Channel check failed: ${checkError.response?.data?.message || checkError.message}`);
+                  break;
+                }
+              }
+              
+              if (!channelReady) {
+                this.logger.warn(`Channel ${outboundChannelId} not ready, but attempting bridge anyway`);
+              }
               
               // Bridge qilish
               const bridgeResponse = await ari.post(`/bridges`, {
@@ -269,14 +285,33 @@ export class AsteriskService {
               const bridgeId = bridgeResponse.data.id;
               this.logger.log(`Bridge created: ${bridgeId}`);
               
-              await ari.post(`/bridges/${bridgeId}/addChannel`, { channel: channelId });
-              if (outboundChannelId) {
-                await ari.post(`/bridges/${bridgeId}/addChannel`, { channel: outboundChannelId });
+              // Channel larni bridge ga qo'shish
+              try {
+                await ari.post(`/bridges/${bridgeId}/addChannel`, { channel: channelId });
+                this.logger.log(`Channel ${channelId} added to bridge ${bridgeId}`);
+              } catch (addError: any) {
+                this.logger.error(`Error adding channel ${channelId} to bridge: ${JSON.stringify(addError.response?.data || addError.message)}`);
               }
               
-              this.logger.log(`Channels bridged via dialplan: ${channelId} <-> ${outboundChannelId}`);
+              if (outboundChannelId) {
+                try {
+                  await ari.post(`/bridges/${bridgeId}/addChannel`, { channel: outboundChannelId });
+                  this.logger.log(`Channel ${outboundChannelId} added to bridge ${bridgeId}`);
+                } catch (addError: any) {
+                  this.logger.error(`Error adding channel ${outboundChannelId} to bridge: ${JSON.stringify(addError.response?.data || addError.message)}`);
+                  // Channel yo'q bo'lsa, uni yopishga harakat qilish
+                  try {
+                    await ari.delete(`/channels/${outboundChannelId}`);
+                  } catch (deleteError: any) {
+                    // Ignore
+                  }
+                }
+              }
+              
+              this.logger.log(`Channels bridged via dialplan: ${channelId} <-> ${outboundChannelId || 'N/A'}`);
             } catch (dialplanError: any) {
               this.logger.error(`Dialplan approach also failed: ${JSON.stringify(dialplanError.response?.data || dialplanError.message)}`);
+              this.logger.error(`Dialplan error stack: ${dialplanError.stack || 'N/A'}`);
             }
           }
         }

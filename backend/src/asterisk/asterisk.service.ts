@@ -149,17 +149,11 @@ export class AsteriskService {
     }
 
     // Create call record via injected service
-    // Faqat bir marta yaratish uchun - agar callId allaqachon mavjud bo'lsa, skip qilamiz
+    // Upsert ishlatamiz - agar callId mavjud bo'lsa yangilash, yo'q bo'lsa yaratish
     if (callsService) {
       try {
-        // Avval callId ni tekshiramiz - agar mavjud bo'lsa, skip qilamiz
-        const existingCall = await callsService.findByCallId(callId);
-        if (existingCall) {
-          this.logger.log(`Call record already exists for callId: ${callId}, skipping creation`);
-          return existingCall;
-        }
-        
         const recordingPath = `/var/spool/asterisk/recordings/call_${callId}.wav`;
+        // Upsert ishlatamiz - bu 409 Conflict muammosini hal qiladi
         const call = await callsService.create({
           direction,
           fromNumber,

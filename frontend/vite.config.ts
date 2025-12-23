@@ -13,6 +13,12 @@ export default defineConfig({
       },
     },
   },
+  preview: {
+    port: 4001,
+    strictPort: true,
+    // SPA routing uchun - barcha route lar index.html ga redirect qilinadi
+    // Bu Vite preview server da avtomatik ishlaydi
+  },
   build: {
     // Cache busting uchun hash qo'shish
     rollupOptions: {

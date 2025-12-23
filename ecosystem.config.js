@@ -26,7 +26,7 @@ module.exports = {
     {
       name: 'call-center-frontend',
       script: 'npx',
-      args: 'vite preview --host 0.0.0.0 --port 4001',
+      args: 'vite preview --host 0.0.0.0 --port 4001 --strictPort',
       cwd: path.join(projectRoot, 'frontend'),
       instances: 1,
       exec_mode: 'fork',

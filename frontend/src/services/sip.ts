@@ -1,4 +1,4 @@
-// SIP Client Service - JSSIP orqali Kerio Control ga ulanish
+// SIP Client Service - JSSIP orqali SIP provayderga ulanish
 
 // Browser-compatible EventEmitter
 class EventEmitter {
@@ -71,19 +71,12 @@ class SipService extends EventEmitter {
       // JSSIP ni dynamic import qilish
       const JSSIP = await import('jssip');
       
-      // Kerio Control WebSocket URL
-      // Kerio Control odatda WebSocket qo'llab-quvvatlamaydi
-      // Shuning uchun Asterisk WebRTC gateway kerak yoki SIP over WebSocket proxy
-      // Hozircha test uchun bir nechta variant sinab ko'ramiz
-      
-      // Variant 1: WSS (WebSocket Secure)
+      // SIP WebSocket URL - Asterisk WebRTC gateway orqali
+      // Bell.uz yoki boshqa SIP provayderlar uchun WebSocket URL
       let wsUrl = `wss://${config.server}:8089/ws`;
       
-      // Agar ishlamasa, Variant 2: WS (WebSocket)
-      // wsUrl = `ws://${config.server}:8089/ws`;
-      
-      // Agar ishlamasa, Variant 3: Asterisk WebRTC gateway orqali
-      // wsUrl = `wss://152.53.229.176:8088/ari/events`;
+      // Agar Asterisk WebRTC gateway bo'lsa, uning URL ni ishlating
+      // wsUrl = `wss://your-asterisk-server:8088/ari/events`;
       
       console.log('SIP connecting to:', wsUrl);
       
@@ -153,7 +146,7 @@ class SipService extends EventEmitter {
         if (!this.registered) {
           console.warn('SIP registration timeout');
           this.emit('registrationFailed', { 
-            message: 'Connection timeout. Kerio Control WebSocket qo\'llab-quvvatlamaydi.',
+            message: 'Connection timeout. SIP WebSocket ulanib bo\'lmadi.',
             cause: 'TIMEOUT'
           });
         }

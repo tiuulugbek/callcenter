@@ -372,7 +372,8 @@ const Settings = () => {
               <div className="info-box" style={{ backgroundColor: '#d1ecf1', padding: '1rem', borderRadius: '8px', marginBottom: '1.5rem', border: '1px solid #bee5eb' }}>
                 <h4>ℹ️ Ma'lumot</h4>
                 <p><strong>Asterisk PBX</strong> orqali barcha qo'ng'iroqlar boshqariladi.</p>
-                <p>Ma'lumotlarni kiriting va "Ma'lumotlarni Saqlash" tugmasini bosing. Trunk avtomatik Asterisk ga sozlanadi.</p>
+                <p>Bell.uz SIP provayder ma'lumotlarini kiriting va "Ma'lumotlarni Saqlash" tugmasini bosing. Trunk avtomatik Asterisk ga sozlanadi.</p>
+                <p><strong>Muhim:</strong> Login, Password va SIP-server ma'lumotlarini to'g'ri kiriting. Bu ma'lumotlar Bell.uz dan olingan bo'lishi kerak.</p>
               </div>
 
               <div className="form-section">
@@ -467,7 +468,7 @@ const Settings = () => {
                         <th>Login</th>
                         <th>Port</th>
                         <th>Transport</th>
-                        <th style={{ width: '150px' }}>Amallar</th>
+                        <th style={{ width: '200px', minWidth: '180px' }}>Amallar</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -479,12 +480,17 @@ const Settings = () => {
                           <td>{trunk.port || 5060}</td>
                           <td>{trunk.transport || 'udp'}</td>
                           <td>
-                            <div style={{ display: 'flex', gap: '0.5rem' }}>
+                            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                               <button
                                 onClick={() => handleEditTrunk(trunk)}
                                 disabled={loading}
                                 className="btn-secondary"
-                                style={{ padding: '0.25rem 0.5rem', fontSize: '0.875rem' }}
+                                style={{ 
+                                  padding: '0.5rem 1rem', 
+                                  fontSize: '0.875rem',
+                                  minWidth: '80px',
+                                  cursor: loading ? 'not-allowed' : 'pointer'
+                                }}
                               >
                                 Tahrirlash
                               </button>
@@ -492,13 +498,14 @@ const Settings = () => {
                                 onClick={() => handleDeleteTrunk(trunk.id)}
                                 disabled={loading || !trunk.id}
                                 style={{ 
-                                  padding: '0.25rem 0.5rem', 
+                                  padding: '0.5rem 1rem', 
                                   fontSize: '0.875rem', 
                                   backgroundColor: '#dc3545', 
                                   color: 'white', 
                                   border: 'none',
                                   borderRadius: '4px',
-                                  cursor: loading ? 'not-allowed' : 'pointer'
+                                  cursor: loading || !trunk.id ? 'not-allowed' : 'pointer',
+                                  minWidth: '80px'
                                 }}
                               >
                                 O'chirish
@@ -512,18 +519,19 @@ const Settings = () => {
                 </div>
               )}
 
-              <div className="info-box">
-                <h4>📋 Asterisk Sozlash</h4>
-                <p>Ma'lumotlar saqlangandan keyin Asterisk avtomatik sozlanadi. Tekshirish:</p>
-                <pre>
-                  <code>
-                    sudo asterisk -rvvv<br/>
-                    pjsip show endpoints<br/>
-                    pjsip show registrations
-                  </code>
+              <div className="info-box" style={{ backgroundColor: '#fff3cd', padding: '1rem', borderRadius: '8px', marginTop: '1.5rem', border: '1px solid #ffc107' }}>
+                <h4>📋 Muhim Eslatmalar</h4>
+                <p><strong>Trunk yaratgandan keyin Asterisk ni qayta ishga tushiring:</strong></p>
+                <pre style={{ backgroundColor: '#fff', padding: '0.5rem', borderRadius: '4px', margin: '0.5rem 0' }}>
+                  <code>sudo systemctl restart asterisk</code>
                 </pre>
-                <p>Agar trunk ulanmagan bo'lsa, Asterisk ni reload qiling:</p>
-                <pre><code>sudo asterisk -rx "pjsip reload"</code></pre>
+                <p><strong>Trunk holatini tekshirish:</strong></p>
+                <pre style={{ backgroundColor: '#fff', padding: '0.5rem', borderRadius: '4px', margin: '0.5rem 0' }}>
+                  <code>sudo asterisk -rvvv → pjsip show endpoints</code>
+                </pre>
+                <p><strong>Agar konfiguratsiya avtomatik yozilmagan bo'lsa:</strong></p>
+                <p style={{ marginTop: '0.5rem' }}>Manually <code>/etc/asterisk/pjsip.conf</code> faylini yangilang</p>
+                <p style={{ marginTop: '0.5rem' }}><strong>Chiquvchi qo'ng'iroqlar uchun dialplan da trunk nomini ishlating</strong></p>
               </div>
             </div>
           )}

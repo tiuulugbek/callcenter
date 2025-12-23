@@ -160,7 +160,7 @@ export class AsteriskService {
         this.logger.log(`Originating outbound call: ${outboundEndpoint}, From: ${fromNumber}, To: ${toNumber}`);
         
         try {
-          const outboundChannel = await ari.post(`/channels`, {
+          const outboundChannelResponse = await ari.post(`/channels`, {
             endpoint: outboundEndpoint,
             app: 'call-center',
             appArgs: `chiquvchi,${fromNumber},${toNumber}`,
@@ -168,20 +168,37 @@ export class AsteriskService {
             timeout: 30,
           });
           
-          this.logger.log(`Outbound channel created: ${outboundChannel.data.id}`);
+          const outboundChannelId = outboundChannelResponse.data.id;
+          this.logger.log(`Outbound channel created: ${outboundChannelId}`);
+          
+          // Kichik kutish - channel to'liq yaratilishi uchun
+          await new Promise(resolve => setTimeout(resolve, 500));
           
           // Ikkala channel ni bridge qilish
-          await ari.post(`/bridges`, {
-            type: 'mixing',
-            name: `bridge_${callId}`,
-          }).then(async (bridge: any) => {
-            const bridgeId = bridge.data.id;
+          try {
+            const bridgeResponse = await ari.post(`/bridges`, {
+              type: 'mixing',
+              name: `bridge_${callId}`,
+            });
+            
+            const bridgeId = bridgeResponse.data.id;
+            this.logger.log(`Bridge created: ${bridgeId}`);
+            
+            // Channel larni bridge ga qo'shish
             await ari.post(`/bridges/${bridgeId}/addChannel`, { channel: channelId });
-            await ari.post(`/bridges/${bridgeId}/addChannel`, { channel: outboundChannel.data.id });
-            this.logger.log(`Channels bridged: ${channelId} <-> ${outboundChannel.data.id}`);
-          });
+            this.logger.log(`Channel ${channelId} added to bridge ${bridgeId}`);
+            
+            await ari.post(`/bridges/${bridgeId}/addChannel`, { channel: outboundChannelId });
+            this.logger.log(`Channel ${outboundChannelId} added to bridge ${bridgeId}`);
+            
+            this.logger.log(`Channels bridged successfully: ${channelId} <-> ${outboundChannelId}`);
+          } catch (bridgeError: any) {
+            this.logger.error(`Error bridging channels: ${bridgeError.response?.data || bridgeError.message || bridgeError}`);
+            // Bridge muammosi bo'lsa ham, channel lar ishlayapti
+          }
         } catch (error: any) {
           this.logger.error(`Error originating outbound call: ${error.response?.data || error.message || error}`);
+          this.logger.error(`Error details: ${JSON.stringify(error.response?.data || error)}`);
           // Muammo bo'lsa ham recording ni boshlash
         }
       }

@@ -54,7 +54,7 @@ export class CallsController {
   }
 
   @Post('outbound')
-  makeOutboundCall(@Body() data: { fromNumber: string; toNumber: string; extension?: string }) {
+  makeOutboundCall(@Body() data: { fromNumber: string; toNumber: string; extension?: string; trunkName?: string }) {
     return this.asteriskService.makeOutboundCall(data);
   }
 }

@@ -37,29 +37,9 @@ exten => _X.,1,NoOp(Ichki qo'ng'iroq: ${EXTEN})
  same => n,Dial(PJSIP/${EXTEN},30)
  same => n,Hangup()
 
-; Tashqi raqamlarga qo'ng'iroq (trunk orqali)
-; Format: 998XXXXXXXXX (Uzbekistan raqamlari)
-exten => _998X.,1,NoOp(Chiquvchi qo'ng'iroq trunk orqali: ${EXTEN})
- same => n,Set(CALL_ID=${UUID})
- same => n,Set(RECORDING_PATH=/var/spool/asterisk/recordings/call_${CALL_ID}.wav)
- same => n,Set(FROM_NUMBER=${CALLERID(num)})
- same => n,Set(TO_NUMBER=${EXTEN})
- same => n,Stasis(call-center,${CALL_ID},chiquvchi,${FROM_NUMBER},${TO_NUMBER})
- same => n,Hangup()
-
-; Boshqa tashqi raqamlar (xalqaro format)
-exten => _+X.,1,NoOp(Chiquvchi qo'ng'iroq trunk orqali: ${EXTEN})
- same => n,Set(CALL_ID=${UUID})
- same => n,Set(RECORDING_PATH=/var/spool/asterisk/recordings/call_${CALL_ID}.wav)
- same => n,Set(FROM_NUMBER=${CALLERID(num)})
- same => n,Set(TO_NUMBER=${EXTEN})
- same => n,Stasis(call-center,${CALL_ID},chiquvchi,${FROM_NUMBER},${TO_NUMBER})
- same => n,Hangup()
-
 [outbound]
 ; Chiquvchi qo'ng'iroqlar uchun kontekst
 ; Uzbekistan raqamlari (998XXXXXXXXX) - SIPnomer trunk orqali
-; MUHIM: _998X. pattern _X. dan oldin bo'lishi kerak!
 exten => _998X.,1,NoOp(Chiquvchi qo'ng'iroq SIPnomer trunk orqali: ${EXTEN})
  same => n,Set(CALL_ID=${UUID})
  same => n,Set(RECORDING_PATH=/var/spool/asterisk/recordings/call_${CALL_ID}.wav)

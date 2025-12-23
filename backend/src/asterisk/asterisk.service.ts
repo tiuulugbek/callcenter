@@ -29,17 +29,44 @@ export class AsteriskService {
     });
   }
 
-  async makeOutboundCall(data: { fromNumber: string; toNumber: string; extension?: string }) {
+  async makeOutboundCall(data: { fromNumber: string; toNumber: string; extension?: string; trunkName?: string }) {
     try {
       const ari = this.getAriClient();
       const app = 'call-center';
       
+      // Trunk nomini aniqlash
+      let trunkName = data.trunkName;
+      
+      // Agar trunk nomi berilmagan bo'lsa, database dan birinchi faol trunk ni topish
+      if (!trunkName) {
+        try {
+          const { PrismaService } = await import('../common/prisma/prisma.service');
+          const prisma = new PrismaService();
+          const trunks = await prisma.sipTrunk.findMany({
+            take: 1,
+            orderBy: { createdAt: 'desc' },
+          });
+          
+          if (trunks.length > 0) {
+            // Trunk nomini tozalash (bo'sh joylarni olib tashlash)
+            trunkName = trunks[0].name.replace(/\s+/g, '').replace(/[^a-zA-Z0-9-]/g, '');
+            this.logger.log(`Using trunk from database: ${trunkName}`);
+          } else {
+            // Default trunk nomi
+            trunkName = 'SIPnomer';
+            this.logger.warn(`No trunk found in database, using default: ${trunkName}`);
+          }
+        } catch (error) {
+          // Default trunk nomi
+          trunkName = 'SIPnomer';
+          this.logger.warn(`Error fetching trunk from database, using default: ${trunkName}`);
+        }
+      }
+      
       // Format: PJSIP/number@trunk-name
-      // bell.uz trunk nomi: BellUZ
-      const trunkName = 'BellUZ'; // bell.uz trunk nomi
       const endpoint = `PJSIP/${data.toNumber}@${trunkName}`;
       
-      this.logger.log(`Originating call: ${endpoint}, From: ${data.fromNumber}, To: ${data.toNumber}`);
+      this.logger.log(`Originating call: ${endpoint}, From: ${data.fromNumber}, To: ${data.toNumber}, Trunk: ${trunkName}`);
       
       // Originate call via ARI
       const response = await ari.post(`/channels`, {
@@ -55,6 +82,7 @@ export class AsteriskService {
       return {
         success: true,
         channelId: response.data.id,
+        trunkName: trunkName,
         message: 'Qo\'ng\'iroq boshlanmoqda',
       };
     } catch (error: any) {

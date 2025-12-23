@@ -88,6 +88,12 @@ export class CallsService {
     });
   }
 
+  async findByCallId(callId: string) {
+    return this.prisma.call.findUnique({
+      where: { callId },
+    });
+  }
+
   async updateByCallId(callId: string, data: {
     endTime?: Date;
     duration?: number;

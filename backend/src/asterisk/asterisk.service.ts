@@ -94,10 +94,37 @@ export class AsteriskService {
 
   async handleStasisStart(event: any, callsService: any) {
     const channelId = event.channel.id;
-    const callId = event.args?.[0] || event.channel.id;
-    const direction = event.args?.[1] || 'kiruvchi';
-    const fromNumber = event.args?.[2] || event.channel.caller?.number || event.channel.caller?.name || 'Noma\'lum';
-    const toNumber = event.args?.[3] || event.channel.dialplan?.exten || event.channel.connected?.number || 'Noma\'lum';
+    
+    // Parse event args - format: [callId, direction, fromNumber, toNumber]
+    // Agar args[0] bo'sh bo'lsa yoki callId bo'lmasa, channelId ni ishlatamiz
+    const args = event.args || [];
+    let callId = args[0];
+    let direction = args[1];
+    let fromNumber = args[2];
+    let toNumber = args[3];
+    
+    // Agar callId bo'sh bo'lsa yoki yo'q bo'lsa, channelId ni ishlatamiz
+    if (!callId || callId === '') {
+      callId = channelId;
+    }
+    
+    // Agar direction yo'q bo'lsa yoki raqam bo'lsa (noto'g'ri parse), dialplan dan olamiz
+    if (!direction || direction.match(/^\d+$/)) {
+      // Dialplan app_data dan parse qilish
+      const appData = event.channel.dialplan?.app_data || '';
+      const appDataParts = appData.split(',');
+      if (appDataParts.length >= 3) {
+        direction = appDataParts[1] || 'kiruvchi';
+        fromNumber = appDataParts[2] || fromNumber || event.channel.caller?.number || 'Noma\'lum';
+        toNumber = appDataParts[3] || toNumber || event.channel.dialplan?.exten || 'Noma\'lum';
+      } else {
+        direction = direction || 'kiruvchi';
+      }
+    }
+    
+    // Fallback values
+    fromNumber = fromNumber || event.channel.caller?.number || event.channel.caller?.name || 'Noma\'lum';
+    toNumber = toNumber || event.channel.dialplan?.exten || event.channel.connected?.number || 'Noma\'lum';
 
     this.logger.log(`StasisStart: ${channelId}, CallId: ${callId}, Direction: ${direction}, From: ${fromNumber}, To: ${toNumber}`);
     this.logger.log(`Event args: ${JSON.stringify(event.args)}`);
@@ -122,8 +149,16 @@ export class AsteriskService {
     }
 
     // Create call record via injected service
+    // Faqat bir marta yaratish uchun - agar callId allaqachon mavjud bo'lsa, skip qilamiz
     if (callsService) {
       try {
+        // Avval callId ni tekshiramiz - agar mavjud bo'lsa, skip qilamiz
+        const existingCall = await callsService.findByCallId(callId);
+        if (existingCall) {
+          this.logger.log(`Call record already exists for callId: ${callId}, skipping creation`);
+          return existingCall;
+        }
+        
         const recordingPath = `/var/spool/asterisk/recordings/call_${callId}.wav`;
         const call = await callsService.create({
           direction,

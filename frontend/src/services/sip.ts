@@ -1,5 +1,37 @@
 // SIP Client Service - JSSIP orqali Kerio Control ga ulanish
-import { EventEmitter } from 'events';
+
+// Browser-compatible EventEmitter
+class EventEmitter {
+  private events: Map<string, Array<(...args: any[]) => void>> = new Map();
+
+  on(event: string, callback: (...args: any[]) => void) {
+    if (!this.events.has(event)) {
+      this.events.set(event, []);
+    }
+    this.events.get(event)!.push(callback);
+  }
+
+  emit(event: string, ...args: any[]) {
+    const callbacks = this.events.get(event);
+    if (callbacks) {
+      callbacks.forEach(callback => callback(...args));
+    }
+  }
+
+  off(event: string, callback?: (...args: any[]) => void) {
+    if (!callback) {
+      this.events.delete(event);
+      return;
+    }
+    const callbacks = this.events.get(event);
+    if (callbacks) {
+      const index = callbacks.indexOf(callback);
+      if (index > -1) {
+        callbacks.splice(index, 1);
+      }
+    }
+  }
+}
 
 export interface CallState {
   id: string;

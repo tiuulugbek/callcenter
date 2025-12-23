@@ -95,19 +95,20 @@ export class SipTrunkService {
     // Mavjud transport dan foydalanish (transport-udp, transport-tcp)
     const transportName = transport === 'udp' ? 'transport-udp' : transport === 'tcp' ? 'transport-tcp' : 'transport-udp';
     
-    // Trunk nomi - katta harflar bilan
-    const trunkName = data.name.replace(/[^a-zA-Z0-9]/g, '');
+    // Trunk nomi - faqat lotin harflar, raqamlar va tire (PJSIP uchun)
+    const trunkName = data.name.replace(/[^a-zA-Z0-9-]/g, '').replace(/^-+|-+$/g, '');
 
     return `
 ; SIP Trunk: ${data.name}
 ; Generated automatically - ${new Date().toISOString()}
 
-[${data.name}]
+[${trunkName}]
 type = aor
 contact = sip:${data.username}@${data.host}:${port}
 qualify_frequency = 60
+maximum_expiration = 3600
 
-[${data.name}]
+[${trunkName}]
 type = endpoint
 context = from-external
 disallow = all
@@ -116,24 +117,28 @@ allow = alaw
 allow = g729
 direct_media = no
 transport = ${transportName}
-aors = ${data.name}
-auth = ${data.name}-auth
-outbound_auth = ${data.name}-auth
+aors = ${trunkName}
+auth = ${trunkName}-auth
+outbound_auth = ${trunkName}-auth
 rtp_symmetric = yes
 force_rport = yes
 rewrite_contact = yes
 trust_id_inbound = yes
 send_rpid = yes
+rtp_ipv6 = no
+use_avpf = no
+media_encryption = no
+dtmf_mode = rfc4733
 
-[${data.name}-auth]
+[${trunkName}-auth]
 type = auth
 auth_type = userpass
 username = ${data.username}
 password = ${data.password}
 
-[${data.name}-identify]
+[${trunkName}-identify]
 type = identify
-endpoint = ${data.name}
+endpoint = ${trunkName}
 match = ${data.host}
 `;
   }
@@ -358,12 +363,12 @@ match = ${data.host}
 
       // Yangi ma'lumotlar bilan yangilash
       const updateData: any = {};
-      if (data.name) updateData.name = data.name;
-      if (data.host) updateData.host = data.host;
-      if (data.username) updateData.username = data.username;
-      if (data.password) updateData.password = data.password;
+      if (data.name !== undefined) updateData.name = data.name;
+      if (data.host !== undefined) updateData.host = data.host;
+      if (data.username !== undefined) updateData.username = data.username;
+      if (data.password !== undefined && data.password !== '') updateData.password = data.password;
       if (data.port !== undefined) updateData.port = data.port;
-      if (data.transport) updateData.transport = data.transport;
+      if (data.transport !== undefined) updateData.transport = data.transport;
 
       const updatedTrunk = await this.prisma.sipTrunk.update({
         where: { id },

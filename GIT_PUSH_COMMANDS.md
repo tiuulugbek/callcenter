@@ -1,39 +1,84 @@
-# Git Push Buyruqlari
+# GitHubga Push va Serverga Deploy Qilish
 
-## Terminal da Quyidagi Buyruqlarni Bajaring
+## GitHubga Push Qilish
 
-```bash
-cd /Users/tiuulugbek/asterisk-call-center
-
-# Barcha o'zgarishlarni qo'shish
-git add backend/CREATE_ADMIN.js backend/CREATE_ADMIN.sh backend/src/auth/auth.service.ts backend/FIX_LOGIN.md DEBUG_TEKSHRISH_BUTTON.md backend/FIX_PRISMA_MIGRATION.md frontend/src/pages/Settings.tsx frontend/src/services/api.ts frontend/index.html
-
-# Commit
-git commit -m "Fix: Login muammosini tuzatish va admin yaratish scriptlar
-
-- CREATE_ADMIN.js - Admin yaratish script
-- CREATE_ADMIN.sh - Admin yaratish shell script
-- auth.service.ts - Debug loglar qo'shildi
-- Settings.tsx - Soddalashtirildi (faqat Telegram va Kerio Operator)
-- API interceptor - 401 xatolikda login sahifasiga redirect
-- FIX_LOGIN.md - Login muammosini tuzatish qo'llanmasi"
-
-# Push
-git push origin main
-```
-
-## Yoki Barcha O'zgarishlarni Qo'shish
+Quyidagi buyruqlarni ketma-ket bajaring:
 
 ```bash
 cd /Users/tiuulugbek/asterisk-call-center
 
 # Barcha o'zgarishlarni qo'shish
-git add .
+git add -A
 
-# Commit
-git commit -m "Fix: Login muammosini tuzatish va admin yaratish scriptlar"
+# Commit qilish
+git commit -m "Kerio Operator logikasini optimallashtirish va SIP trunk o'chirishni tuzatish
 
-# Push
+- Kerio Operator avtomatik sync va polling o'chirildi
+- Kerio Operator logikasi faqat Settings sahifasidagi Kerio Operator tabida ishlatiladi
+- SIP trunk o'chirish funksiyasi tuzatildi
+- Frontend TypeScript xatolari tuzatildi
+- PM2 config yo'llari yangilandi"
+
+# GitHubga push qilish
 git push origin main
 ```
 
+## Serverga Deploy Qilish
+
+Serverni SSH orqali ulang va quyidagi buyruqlarni bajaring:
+
+```bash
+# Loyiha papkasiga o'tish
+cd /var/www/call-center  # yoki loyiha papkangiz
+
+# Git pull qilish
+git pull origin main
+
+# Deploy scriptni ishga tushirish
+./deploy_to_server.sh
+```
+
+Yoki qo'lda:
+
+```bash
+cd /var/www/call-center  # yoki loyiha papkangiz
+
+# Git pull
+git pull origin main
+
+# Backend dependencies
+cd backend
+npm install
+npx prisma generate
+npm run build
+
+# Frontend dependencies
+cd ../frontend
+npm install
+npm run build
+
+# PM2 restart
+cd ..
+pm2 restart ecosystem.config.js
+pm2 list
+```
+
+## O'zgarishlar
+
+1. **Kerio Operator optimallashtirildi:**
+   - `backend/src/main.ts` dan avtomatik sync va polling o'chirildi
+   - Kerio Operator logikasi endi faqat Settings sahifasidagi "Kerio Operator" tabida ishlatiladi
+   - Qo'lda sinxronlashtirish mumkin
+
+2. **SIP Trunk o'chirish tuzatildi:**
+   - Frontendda `trunk.id` to'g'ri ishlatiladi
+   - O'chirish tugmasi faqat `id` mavjud bo'lganda faollashadi
+
+3. **Frontend TypeScript xatolari tuzatildi:**
+   - `vite/client` typelar qo'shildi
+   - `jssip` type declarations yaratildi
+   - Browser uchun EventEmitter klass yaratildi
+
+4. **PM2 config yangilandi:**
+   - Yo'llar loyiha papkasiga moslashtirildi
+   - Log fayllar `logs/` papkasiga yo'naltirildi

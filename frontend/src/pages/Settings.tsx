@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react'
 import Layout from '../components/Layout'
-import { settingsApi } from '../services/api'
+import { settingsApi, kerioApi } from '../services/api'
 import './Settings.css'
 
 const Settings = () => {
-  const [activeTab, setActiveTab] = useState<'telegram' | 'sip'>('telegram')
+  const [activeTab, setActiveTab] = useState<'telegram' | 'sip' | 'kerio'>('telegram')
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error' | 'warning'; text: string } | null>(null)
 
@@ -24,6 +24,14 @@ const Settings = () => {
   })
   const [editingTrunk, setEditingTrunk] = useState<any | null>(null)
 
+  // Kerio Operator Settings
+  const [kerioAuthenticated, setKerioAuthenticated] = useState(false)
+  const [kerioSyncing, setKerioSyncing] = useState(false)
+  const [kerioSyncMessage, setKerioSyncMessage] = useState<string | null>(null)
+  const [kerioStartDate, setKerioStartDate] = useState('')
+  const [kerioEndDate, setKerioEndDate] = useState('')
+  const [kerioExtension, setKerioExtension] = useState('')
+
   useEffect(() => {
     // Token mavjudligini tekshirish
     const token = localStorage.getItem('token')
@@ -35,7 +43,36 @@ const Settings = () => {
     
     loadSettings()
     loadSipTrunks()
+    checkKerioAuth()
   }, [])
+
+  const checkKerioAuth = async () => {
+    try {
+      const result = await kerioApi.verifyAuth()
+      setKerioAuthenticated(result.authenticated || false)
+    } catch (error) {
+      console.error('Kerio auth tekshirishda xatolik:', error)
+      setKerioAuthenticated(false)
+    }
+  }
+
+  const handleKerioSync = async () => {
+    setKerioSyncing(true)
+    setKerioSyncMessage(null)
+    try {
+      const params: any = {}
+      if (kerioStartDate) params.startDate = kerioStartDate
+      if (kerioEndDate) params.endDate = kerioEndDate
+      if (kerioExtension) params.extension = kerioExtension
+
+      const result = await kerioApi.syncCalls(params)
+      setKerioSyncMessage(`Muvaffaqiyatli: ${result.message || `${result.syncedCount} ta qo'ng'iroq yangilandi`}`)
+    } catch (error: any) {
+      setKerioSyncMessage(`Xatolik: ${error.response?.data?.message || error.message || "Noma'lum xatolik"}`)
+    } finally {
+      setKerioSyncing(false)
+    }
+  }
 
   const loadSipTrunks = async () => {
     try {
@@ -96,18 +133,31 @@ const Settings = () => {
 
   const handleUpdateTrunk = async () => {
     if (!editingTrunk || !newTrunk.name || !newTrunk.host || !newTrunk.username) {
-      setMessage({ type: 'error', text: 'Barcha maydonlarni to\'ldiring' })
+      setMessage({ type: 'error', text: 'Barcha maydonlarni to\'ldiring (Nomi, Server, Login)' })
       return
     }
     setLoading(true)
     setMessage(null)
     try {
-      await settingsApi.updateSipTrunk(editingTrunk.id, newTrunk)
+      // Password bo'sh bo'lsa, o'zgartirmaslik
+      const updateData: any = {
+        name: newTrunk.name,
+        host: newTrunk.host,
+        username: newTrunk.username,
+        port: newTrunk.port,
+        transport: newTrunk.transport,
+      }
+      // Password faqat yangi kiritilgan bo'lsa qo'shish
+      if (newTrunk.password && newTrunk.password.trim() !== '') {
+        updateData.password = newTrunk.password
+      }
+      
+      await settingsApi.updateSipTrunk(editingTrunk.id, updateData)
       await loadSipTrunks()
       setEditingTrunk(null)
       setMessage({
         type: 'success',
-        text: 'SIP trunk muvaffaqiyatli yangilandi.',
+        text: 'SIP trunk muvaffaqiyatli yangilandi va Asterisk ga avtomatik sozlandi.',
       })
       setNewTrunk({
         name: 'BellUZ',
@@ -250,6 +300,12 @@ const Settings = () => {
             onClick={() => setActiveTab('sip')}
           >
             SIP Provayder
+          </button>
+          <button
+            className={activeTab === 'kerio' ? 'active' : ''}
+            onClick={() => setActiveTab('kerio')}
+          >
+            Kerio Operator
           </button>
         </div>
 
@@ -433,8 +489,8 @@ const Settings = () => {
                                 Tahrirlash
                               </button>
                               <button
-                                onClick={() => handleDeleteTrunk(trunk.id || trunk.name)}
-                                disabled={loading}
+                                onClick={() => handleDeleteTrunk(trunk.id)}
+                                disabled={loading || !trunk.id}
                                 style={{ 
                                   padding: '0.25rem 0.5rem', 
                                   fontSize: '0.875rem', 
@@ -468,6 +524,74 @@ const Settings = () => {
                 </pre>
                 <p>Agar trunk ulanmagan bo'lsa, Asterisk ni reload qiling:</p>
                 <pre><code>sudo asterisk -rx "pjsip reload"</code></pre>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'kerio' && (
+            <div className="settings-section">
+              <h2>Kerio Operator</h2>
+              <p className="settings-description">
+                Kerio Operator PBX dan qo'ng'iroq ma'lumotlarini sinxronlashtirish.
+              </p>
+
+              <div className="info-box" style={{ backgroundColor: '#d1ecf1', padding: '1rem', borderRadius: '8px', marginBottom: '1.5rem', border: '1px solid #bee5eb' }}>
+                <h4>ℹ️ Ma'lumot</h4>
+                <p><strong>Kerio Operator</strong> logikasi faqat bu tabda ishlatiladi.</p>
+                <p>Avtomatik sinxronlashtirish o'chirilgan. Qo'ng'iroqlarni qo'lda sinxronlashtirish mumkin.</p>
+              </div>
+
+              <div className="form-section">
+                <h3>Ulanishni Tekshirish</h3>
+                <div style={{ marginBottom: '1rem' }}>
+                  <p>Holat: <strong style={{ color: kerioAuthenticated ? '#28a745' : '#dc3545' }}>
+                    {kerioAuthenticated ? '✅ Ulangan' : '❌ Ulanmagan'}
+                  </strong></p>
+                  <button onClick={checkKerioAuth} disabled={loading} className="btn-secondary" style={{ marginTop: '0.5rem' }}>
+                    Qayta Tekshirish
+                  </button>
+                </div>
+
+                <h3>Qo'ng'iroqlarni Sinxronlashtirish</h3>
+                <div className="form-group">
+                  <label>Boshlanish sanasi</label>
+                  <input
+                    type="date"
+                    value={kerioStartDate}
+                    onChange={(e) => setKerioStartDate(e.target.value)}
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Tugash sanasi</label>
+                  <input
+                    type="date"
+                    value={kerioEndDate}
+                    onChange={(e) => setKerioEndDate(e.target.value)}
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Extension (ixtiyoriy)</label>
+                  <input
+                    type="text"
+                    value={kerioExtension}
+                    onChange={(e) => setKerioExtension(e.target.value)}
+                    placeholder="Masalan: 1001"
+                  />
+                </div>
+                <div className="button-group">
+                  <button 
+                    onClick={handleKerioSync} 
+                    disabled={kerioSyncing || loading} 
+                    className="btn-primary"
+                  >
+                    {kerioSyncing ? 'Sinxronlashtirilmoqda...' : 'Sinxronlashtirish'}
+                  </button>
+                </div>
+                {kerioSyncMessage && (
+                  <div className={`alert alert-${kerioSyncMessage.includes('Muvaffaqiyatli') ? 'success' : 'error'}`} style={{ marginTop: '1rem' }}>
+                    {kerioSyncMessage}
+                  </div>
+                )}
               </div>
             </div>
           )}

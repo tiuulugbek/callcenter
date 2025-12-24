@@ -162,6 +162,8 @@ forbidden_retry_interval = 300
 expiration = 3600
 line = ${trunkName}-registration
 endpoint = ${trunkName}
+auth_rejection_permanent = no
+max_retries = 10
 `;
   }
 

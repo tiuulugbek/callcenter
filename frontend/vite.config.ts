@@ -29,5 +29,11 @@ export default defineConfig({
       },
     },
   },
+  optimizeDeps: {
+    include: ['jssip'],
+    esbuildOptions: {
+      target: 'es2020',
+    },
+  },
 })
 

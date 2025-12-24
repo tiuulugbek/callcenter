@@ -105,6 +105,7 @@ export class SipTrunkService {
     return `
 ; SIP Trunk: ${data.name}
 ; Generated automatically - ${new Date().toISOString()}
+; Direct registration to SIP provider - Independent from Kerio Operator
 
 [${trunkName}]
 type = aor
@@ -112,6 +113,7 @@ contact = sip:${data.username}@${data.host}:${port}
 qualify_frequency = 60
 maximum_expiration = 3600
 qualify_timeout = 3.0
+remove_existing = yes
 
 [${trunkName}]
 type = endpoint
@@ -147,6 +149,18 @@ password = ${data.password}
 type = identify
 endpoint = ${trunkName}
 match = ${data.host}
+
+[${trunkName}-registration]
+type = registration
+transport = ${transportName}
+outbound_auth = ${trunkName}-auth
+server_uri = sip:${data.host}:${port}
+client_uri = sip:${data.username}@${data.host}:${port}
+contact_user = ${data.username}
+retry_interval = 60
+forbidden_retry_interval = 300
+expiration = 3600
+outbound_proxy = sip:${data.host}:${port}
 `;
   }
 

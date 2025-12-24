@@ -1,10 +1,19 @@
 import { useState, useEffect } from 'react'
 import Layout from '../components/Layout'
 import { settingsApi, kerioApi } from '../services/api'
+import Phone from '../components/Phone'
 import './Settings.css'
 
 const Settings = () => {
-  const [activeTab, setActiveTab] = useState<'telegram' | 'sip' | 'kerio'>('telegram')
+  const [activeTab, setActiveTab] = useState<'telegram' | 'sip' | 'kerio' | 'webrtc'>('telegram')
+  
+  // WebRTC/SIP Settings
+  const [sipConfig, setSipConfig] = useState<{
+    server: string;
+    username: string;
+    password: string;
+    domain: string;
+  } | null>(null)
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error' | 'warning'; text: string } | null>(null)
 
@@ -307,6 +316,12 @@ const Settings = () => {
           >
             Kerio Operator
           </button>
+          <button
+            className={activeTab === 'webrtc' ? 'active' : ''}
+            onClick={() => setActiveTab('webrtc')}
+          >
+            WebRTC Telefon
+          </button>
         </div>
 
         <div className="settings-content">
@@ -601,6 +616,78 @@ const Settings = () => {
                   </div>
                 )}
               </div>
+            </div>
+          )}
+
+          {activeTab === 'webrtc' && (
+            <div className="settings-section">
+              <h2>WebRTC Telefon (bell.uz)</h2>
+              <p className="settings-description">
+                WebRTC orqali to'g'ridan-to'g'ri bell.uz SIP server ga ulanish va qo'ng'iroq qilish.
+              </p>
+
+              <div className="info-box" style={{ backgroundColor: '#d1ecf1', padding: '1rem', borderRadius: '8px', marginBottom: '1.5rem', border: '1px solid #bee5eb' }}>
+                <h4>ℹ️ Ma'lumot</h4>
+                <p><strong>WebRTC</strong> orqali browser dan to'g'ridan-to'g'ri SIP server ga qo'ng'iroq qilish mumkin.</p>
+                <p>Quyidagi ma'lumotlarni kiriting va "Ulanish" tugmasini bosing.</p>
+                <p><strong>Muhim:</strong> Browser microphone ruxsati kerak. HTTPS bo'lishi kerak (production).</p>
+              </div>
+
+              <div className="form-section">
+                <h3>WebRTC Sozlamalari</h3>
+                <div className="form-group">
+                  <label>SIP Server *</label>
+                  <input
+                    type="text"
+                    value={sipConfig?.server || ''}
+                    onChange={(e) => setSipConfig({ ...sipConfig || { server: '', username: '', password: '', domain: '' }, server: e.target.value })}
+                    placeholder="bell.uz"
+                    required
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Login (SIP Username) *</label>
+                  <input
+                    type="text"
+                    value={sipConfig?.username || ''}
+                    onChange={(e) => setSipConfig({ ...sipConfig || { server: '', username: '', password: '', domain: '' }, username: e.target.value })}
+                    placeholder="998785553322"
+                    required
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Password (SIP Password) *</label>
+                  <input
+                    type="password"
+                    value={sipConfig?.password || ''}
+                    onChange={(e) => setSipConfig({ ...sipConfig || { server: '', username: '', password: '', domain: '' }, password: e.target.value })}
+                    placeholder="SIP password"
+                    required
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Domain</label>
+                  <input
+                    type="text"
+                    value={sipConfig?.domain || ''}
+                    onChange={(e) => setSipConfig({ ...sipConfig || { server: '', username: '', password: '', domain: '' }, domain: e.target.value })}
+                    placeholder="bell.uz (avtomatik server dan olinadi)"
+                  />
+                  <small>Domain bo'sh bo'lsa, server dan avtomatik olinadi</small>
+                </div>
+              </div>
+
+              {sipConfig && sipConfig.server && sipConfig.username && sipConfig.password && (
+                <div style={{ marginTop: '2rem', padding: '1rem', border: '1px solid #ddd', borderRadius: '8px' }}>
+                  <h3>Telefon</h3>
+                  <Phone config={{
+                    server: sipConfig.server,
+                    username: sipConfig.username,
+                    password: sipConfig.password,
+                    domain: sipConfig.domain || sipConfig.server,
+                  }} />
+                </div>
+              )}
             </div>
           )}
         </div>

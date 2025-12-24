@@ -289,20 +289,40 @@ export class AsteriskService {
 
   private async bridgeChannels(ari: any, channelId1: string, channelId2: string | null, callId: string) {
     try {
-      const bridgeResponse = await ari.post(`/bridges`, {
-        type: 'mixing',
-        name: `bridge_${callId}`,
-      });
+      // Avval mavjud bridge ni tekshirish
+      let bridgeId: string | null = null;
+      try {
+        const bridges = await ari.get('/bridges');
+        for (const bridge of bridges.data || []) {
+          if (bridge.name === `bridge_${callId}`) {
+            bridgeId = bridge.id;
+            this.logger.log(`Using existing bridge: ${bridgeId}`);
+            break;
+          }
+        }
+      } catch (error: any) {
+        // Ignore
+      }
 
-      const bridgeId = bridgeResponse.data.id;
-      this.logger.log(`Bridge created: ${bridgeId}`);
+      // Agar bridge yo'q bo'lsa, yangi yaratish
+      if (!bridgeId) {
+        const bridgeResponse = await ari.post(`/bridges`, {
+          type: 'mixing',
+          name: `bridge_${callId}`,
+        });
+        bridgeId = bridgeResponse.data.id;
+        this.logger.log(`Bridge created: ${bridgeId}`);
+      }
 
       // Birinchi channel ni qo'shish
       try {
         await ari.post(`/bridges/${bridgeId}/addChannel`, { channel: channelId1 });
         this.logger.log(`Channel ${channelId1} added to bridge ${bridgeId}`);
       } catch (error: any) {
-        this.logger.error(`Error adding channel ${channelId1} to bridge: ${JSON.stringify(error.response?.data || error.message)}`);
+        // Channel allaqachon bridge da bo'lishi mumkin
+        if (!error.response?.data?.message?.includes('already in bridge')) {
+          this.logger.error(`Error adding channel ${channelId1} to bridge: ${JSON.stringify(error.response?.data || error.message)}`);
+        }
       }
 
       // Ikkinchi channel ni qo'shish
@@ -312,12 +332,15 @@ export class AsteriskService {
           this.logger.log(`Channel ${channelId2} added to bridge ${bridgeId}`);
           this.logger.log(`Channels bridged successfully: ${channelId1} <-> ${channelId2}`);
         } catch (error: any) {
-          this.logger.error(`Error adding channel ${channelId2} to bridge: ${JSON.stringify(error.response?.data || error.message)}`);
-          // Channel yo'q bo'lsa, uni yopishga harakat qilish
-          try {
-            await ari.delete(`/channels/${channelId2}`);
-          } catch (deleteError: any) {
-            // Ignore
+          // Channel allaqachon bridge da bo'lishi mumkin
+          if (!error.response?.data?.message?.includes('already in bridge')) {
+            this.logger.error(`Error adding channel ${channelId2} to bridge: ${JSON.stringify(error.response?.data || error.message)}`);
+            // Channel yo'q bo'lsa, uni yopishga harakat qilish
+            try {
+              await ari.delete(`/channels/${channelId2}`);
+            } catch (deleteError: any) {
+              // Ignore
+            }
           }
         }
       }
@@ -355,33 +378,59 @@ export class AsteriskService {
 
     this.logger.log(`ChannelDestroyed: ${channelId}, CallId: ${callId}`);
 
+    // Bridge ni topib o'chirish
+    try {
+      const ari = this.getAriClient();
+      const bridges = await ari.get('/bridges');
+      
+      for (const bridge of bridges.data || []) {
+        if (bridge.name === `bridge_${callId}` || bridge.name === 'bridge_chiquvchi') {
+          try {
+            const bridgeChannels = await ari.get(`/bridges/${bridge.id}/channels`);
+            const channelIds = bridgeChannels.data || [];
+            
+            // Agar bridge da faqat bitta yoki hech channel qolmasa, bridge ni o'chirish
+            if (channelIds.length <= 1) {
+              await ari.delete(`/bridges/${bridge.id}`);
+              this.logger.log(`Bridge ${bridge.id} destroyed (no channels left)`);
+            }
+          } catch (bridgeError: any) {
+            // Bridge allaqachon o'chirilgan bo'lishi mumkin
+            this.logger.debug(`Bridge ${bridge.id} already destroyed or not found`);
+          }
+        }
+      }
+    } catch (error: any) {
+      this.logger.debug(`Error checking bridges: ${error.message}`);
+    }
+
     // Update call record
-      try {
-        const endTime = new Date();
-        
+    try {
+      const endTime = new Date();
+      
       const call = await this.callsService.updateByCallId(callId, {
-          endTime,
+        endTime,
+        status: 'yakunlandi',
+      });
+
+      if (call) {
+        const duration = Math.floor((endTime.getTime() - new Date(call.startTime).getTime()) / 1000);
+        await this.callsService.update(call.id, {
+          duration: duration > 0 ? duration : 0,
           status: 'yakunlandi',
         });
 
-        if (call) {
-          const duration = Math.floor((endTime.getTime() - new Date(call.startTime).getTime()) / 1000);
-        await this.callsService.update(call.id, {
-            duration: duration > 0 ? duration : 0,
-            status: 'yakunlandi',
-          });
-
-          this.logger.log(`Call record updated: ${call.id}, Duration: ${duration}s`);
-          
-          this.wsGateway.emitCallStatus({
-            callId: call.id,
-            state: 'yakunlandi',
-          });
-        } else {
-          this.logger.warn(`Call record not found for callId: ${callId}`);
-        }
-      } catch (error: any) {
-        this.logger.error('Error updating call record:', error.response?.data || error.message || error);
+        this.logger.log(`Call record updated: ${call.id}, Duration: ${duration}s`);
+        
+        this.wsGateway.emitCallStatus({
+          callId: call.id,
+          state: 'yakunlandi',
+        });
+      } else {
+        this.logger.warn(`Call record not found for callId: ${callId}`);
+      }
+    } catch (error: any) {
+      this.logger.error('Error updating call record:', error.response?.data || error.message || error);
     }
     
     this.wsGateway.emitCallStatus({

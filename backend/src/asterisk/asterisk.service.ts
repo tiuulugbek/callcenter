@@ -291,25 +291,69 @@ export class AsteriskService {
 
   private async waitForChannelReady(ari: any, channelId: string, timeout: number = 5000): Promise<boolean> {
     const startTime = Date.now();
+    let lastState = '';
     while (Date.now() - startTime < timeout) {
       try {
         const channelInfo = await ari.get(`/channels/${channelId}`);
         const state = channelInfo.data.state;
-        this.logger.log(`Channel ${channelId} state: ${state}`);
+        if (state !== lastState) {
+          this.logger.log(`Channel ${channelId} state: ${state}`);
+          lastState = state;
+        }
         if (state === 'Up' || state === 'Ring' || state === 'Ringing') {
           return true;
         }
-        await new Promise(resolve => setTimeout(resolve, 300));
+        // Channel o'chib ketgan bo'lsa
+        if (state === 'Down' || state === 'Rsrvd') {
+          this.logger.warn(`Channel ${channelId} is ${state}, not ready`);
+          return false;
+        }
+        await new Promise(resolve => setTimeout(resolve, 200));
       } catch (error: any) {
+        // Channel topilmasa, o'chib ketgan bo'lishi mumkin
+        if (error.response?.status === 404) {
+          this.logger.warn(`Channel ${channelId} not found (may be destroyed)`);
+          return false;
+        }
         this.logger.warn(`Channel check failed: ${error.response?.data?.message || error.message}`);
-        break;
+        await new Promise(resolve => setTimeout(resolve, 200));
       }
     }
+    this.logger.warn(`Channel ${channelId} not ready after ${timeout}ms`);
     return false;
   }
 
   private async bridgeChannels(ari: any, channelId1: string, channelId2: string | null, callId: string) {
     try {
+      // Avval channel larni tekshirish - mavjudligini va holatini
+      let channel1Exists = false;
+      let channel2Exists = false;
+
+      try {
+        const channel1Info = await ari.get(`/channels/${channelId1}`);
+        channel1Exists = true;
+        this.logger.log(`Channel ${channelId1} exists, state: ${channel1Info.data.state}`);
+      } catch (error: any) {
+        this.logger.error(`Channel ${channelId1} not found: ${error.response?.data?.message || error.message}`);
+        return;
+      }
+
+      if (channelId2) {
+        try {
+          const channel2Info = await ari.get(`/channels/${channelId2}`);
+          channel2Exists = true;
+          this.logger.log(`Channel ${channelId2} exists, state: ${channel2Info.data.state}`);
+        } catch (error: any) {
+          this.logger.error(`Channel ${channelId2} not found: ${error.response?.data?.message || error.message}`);
+          channelId2 = null; // Ikkinchi channel yo'q bo'lsa, bridge qilishni bekor qilish
+        }
+      }
+
+      if (!channel1Exists || (channelId2 && !channel2Exists)) {
+        this.logger.warn(`Cannot bridge: channel1=${channel1Exists}, channel2=${channel2Exists}`);
+        return;
+      }
+
       // Avval mavjud bridge ni tekshirish
       let bridgeId: string | null = null;
       try {
@@ -335,33 +379,39 @@ export class AsteriskService {
         this.logger.log(`Bridge created: ${bridgeId}`);
       }
 
+      // Kichik kutish - bridge to'liq yaratilishi uchun
+      await new Promise(resolve => setTimeout(resolve, 300));
+
       // Birinchi channel ni qo'shish
       try {
         await ari.post(`/bridges/${bridgeId}/addChannel`, { channel: channelId1 });
         this.logger.log(`Channel ${channelId1} added to bridge ${bridgeId}`);
       } catch (error: any) {
+        const errorMsg = error.response?.data?.message || error.message || '';
         // Channel allaqachon bridge da bo'lishi mumkin
-        if (!error.response?.data?.message?.includes('already in bridge')) {
+        if (!errorMsg.includes('already in bridge') && !errorMsg.includes('already in')) {
           this.logger.error(`Error adding channel ${channelId1} to bridge: ${JSON.stringify(error.response?.data || error.message)}`);
+        } else {
+          this.logger.log(`Channel ${channelId1} already in bridge`);
         }
       }
 
       // Ikkinchi channel ni qo'shish
       if (channelId2) {
+        // Kichik kutish - birinchi channel qo'shilgandan keyin
+        await new Promise(resolve => setTimeout(resolve, 300));
+        
         try {
           await ari.post(`/bridges/${bridgeId}/addChannel`, { channel: channelId2 });
           this.logger.log(`Channel ${channelId2} added to bridge ${bridgeId}`);
           this.logger.log(`Channels bridged successfully: ${channelId1} <-> ${channelId2}`);
         } catch (error: any) {
+          const errorMsg = error.response?.data?.message || error.message || '';
           // Channel allaqachon bridge da bo'lishi mumkin
-          if (!error.response?.data?.message?.includes('already in bridge')) {
+          if (!errorMsg.includes('already in bridge') && !errorMsg.includes('already in')) {
             this.logger.error(`Error adding channel ${channelId2} to bridge: ${JSON.stringify(error.response?.data || error.message)}`);
-            // Channel yo'q bo'lsa, uni yopishga harakat qilish
-            try {
-              await ari.delete(`/channels/${channelId2}`);
-            } catch (deleteError: any) {
-              // Ignore
-            }
+          } else {
+            this.logger.log(`Channel ${channelId2} already in bridge`);
           }
         }
       }

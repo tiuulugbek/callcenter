@@ -94,13 +94,13 @@ export class AsteriskGateway implements OnModuleInit {
 
     switch (eventType) {
       case 'StasisStart':
-        await this.asteriskService.handleStasisStart(event, this.callsService);
+        await this.asteriskService.handleStasisStart(event);
         break;
       case 'ChannelStateChange':
         await this.asteriskService.handleChannelStateChange(event);
         break;
       case 'ChannelDestroyed':
-        await this.asteriskService.handleChannelDestroyed(event, this.callsService);
+        await this.asteriskService.handleChannelDestroyed(event);
         break;
       default:
         // Other events can be handled here

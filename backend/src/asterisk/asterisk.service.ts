@@ -3,6 +3,8 @@ import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
 import { WebSocketGateway } from '../common/websocket/websocket.gateway';
 import { PrismaService } from '../common/prisma/prisma.service';
+import { SipTrunkService } from '../settings/sip-trunk.service';
+import { CallsService } from '../calls/calls.service';
 
 @Injectable()
 export class AsteriskService {
@@ -15,10 +17,12 @@ export class AsteriskService {
     private configService: ConfigService,
     private wsGateway: WebSocketGateway,
     private prisma: PrismaService,
+    private sipTrunkService: SipTrunkService,
+    private callsService: CallsService,
   ) {
     this.ariUrl = this.configService.get('ASTERISK_ARI_URL') || 'http://localhost:8088/ari';
     this.ariUsername = this.configService.get('ASTERISK_ARI_USERNAME') || 'backend';
-    this.ariPassword = this.configService.get('ASTERISK_ARI_PASSWORD') || 'secure_password';
+    this.ariPassword = this.configService.get('ASTERISK_ARI_PASSWORD') || 'CallCenter2025';
   }
 
   private getAriClient() {
@@ -92,7 +96,7 @@ export class AsteriskService {
     }
   }
 
-  async handleStasisStart(event: any, callsService: any) {
+  async handleStasisStart(event: any) {
     const channelId = event.channel.id;
     
     // Parse event args - format: [callId, direction, fromNumber, toNumber]
@@ -140,183 +144,8 @@ export class AsteriskService {
       this.logger.log(`Channel ${channelId} answered`);
       
       // Agar chiquvchi qo'ng'iroq bo'lsa, trunk orqali qo'ng'iroq qilish
-      // Dialplan orqali qo'ng'iroq qilish yaxshiroq, chunki dialplan trunk ni avtomatik aniqlaydi
       if (direction === 'chiquvchi') {
-        // Trunk nomini aniqlash
-        let trunkName = 'SIPnomer'; // Default trunk nomi
-        try {
-          const trunks = await this.prisma.sipTrunk.findMany({
-            take: 1,
-            orderBy: { createdAt: 'desc' },
-          });
-          if (trunks.length > 0) {
-            trunkName = trunks[0].name.replace(/\s+/g, '').replace(/[^a-zA-Z0-9-]/g, '');
-          }
-        } catch (error: any) {
-          this.logger.warn(`Error fetching trunk, using default: ${trunkName}`);
-        }
-        
-        // To'g'ridan-to'g'ri trunk orqali qo'ng'iroq qilish
-        // PJSIP endpoint ishlatamiz
-        const outboundEndpoint = `PJSIP/${toNumber}@${trunkName}`;
-        this.logger.log(`Originating outbound call: ${outboundEndpoint}, From: ${fromNumber}, To: ${toNumber}, Trunk: ${trunkName}`);
-        
-        let outboundChannelId: string | null = null;
-        
-        try {
-          // Trunk orqali qo'ng'iroq qilish
-          const outboundChannelResponse = await ari.post(`/channels`, {
-            endpoint: outboundEndpoint,
-            app: 'call-center',
-            appArgs: `chiquvchi,${fromNumber},${toNumber}`,
-            callerId: fromNumber,
-            timeout: 30,
-          });
-          
-          outboundChannelId = outboundChannelResponse.data.id;
-          this.logger.log(`Outbound channel created: ${outboundChannelId}`);
-          
-          // Kichik kutish - channel to'liq yaratilishi uchun
-          await new Promise(resolve => setTimeout(resolve, 2000));
-          
-          // Channel holatini tekshirish
-          try {
-            const channelInfo = await ari.get(`/channels/${outboundChannelId}`);
-            this.logger.log(`Outbound channel state: ${channelInfo.data.state}`);
-          } catch (checkError: any) {
-            this.logger.warn(`Could not check channel state: ${checkError.response?.data?.message || checkError.message}`);
-          }
-          
-          // Ikkala channel ni bridge qilish
-          try {
-            const bridgeResponse = await ari.post(`/bridges`, {
-              type: 'mixing',
-              name: `bridge_${callId}`,
-            });
-            
-            const bridgeId = bridgeResponse.data.id;
-            this.logger.log(`Bridge created: ${bridgeId}`);
-            
-            // Channel larni bridge ga qo'shish
-            try {
-              await ari.post(`/bridges/${bridgeId}/addChannel`, { channel: channelId });
-              this.logger.log(`Channel ${channelId} added to bridge ${bridgeId}`);
-            } catch (addError: any) {
-              this.logger.error(`Error adding channel ${channelId} to bridge: ${JSON.stringify(addError.response?.data || addError.message)}`);
-            }
-            
-            if (outboundChannelId) {
-              try {
-                await ari.post(`/bridges/${bridgeId}/addChannel`, { channel: outboundChannelId });
-                this.logger.log(`Channel ${outboundChannelId} added to bridge ${bridgeId}`);
-              } catch (addError: any) {
-                this.logger.error(`Error adding channel ${outboundChannelId} to bridge: ${JSON.stringify(addError.response?.data || addError.message)}`);
-                // Channel yo'q bo'lsa, uni yopishga harakat qilish
-                try {
-                  await ari.delete(`/channels/${outboundChannelId}`);
-                } catch (deleteError: any) {
-                  // Ignore
-                }
-              }
-            }
-            
-            this.logger.log(`Channels bridged successfully: ${channelId} <-> ${outboundChannelId || 'N/A'}`);
-          } catch (bridgeError: any) {
-            this.logger.error(`Error bridging channels: ${JSON.stringify(bridgeError.response?.data || bridgeError.message || bridgeError)}`);
-          }
-        } catch (error: any) {
-          const errorData = error.response?.data || error.message || error;
-          this.logger.error(`Error originating outbound call: ${JSON.stringify(errorData)}`);
-          this.logger.error(`Error stack: ${error.stack || 'N/A'}`);
-          
-          // Agar "Allocation failed" xatosi bo'lsa, dialplan orqali sinab ko'rish
-          if (JSON.stringify(errorData).includes('Allocation failed') || JSON.stringify(errorData).includes('Failed to create')) {
-            this.logger.warn(`PJSIP endpoint failed, trying dialplan approach...`);
-            try {
-              // Dialplan orqali qo'ng'iroq qilish
-              // Local channel yaratish va variable larni o'rnatish
-              const dialplanEndpoint = `Local/${toNumber}@outbound-trunk`;
-              this.logger.log(`Trying dialplan endpoint: ${dialplanEndpoint}`);
-              
-              // Yangi channel yaratish va variable larni o'rnatish
-              // MUHIM: app parametri bo'lishi kerak, chunki ARI Local channel yaratish uchun talab qiladi
-              // Lekin dialplan da Stasis bo'lmasligi kerak, chunki channel allaqachon Stasis ga ulanadi
-              const dialplanResponse = await ari.post(`/channels`, {
-                endpoint: dialplanEndpoint,
-                app: 'call-center',
-                appArgs: `chiquvchi,${fromNumber},${toNumber}`,
-                callerId: fromNumber,
-                timeout: 30,
-                variables: {
-                  FROM_NUMBER: fromNumber,
-                  TO_NUMBER: toNumber,
-                },
-              });
-              
-              outboundChannelId = dialplanResponse.data.id;
-              this.logger.log(`Outbound channel created via dialplan: ${outboundChannelId}`);
-              
-              // Channel holatini kuzatish
-              let channelReady = false;
-              for (let i = 0; i < 10; i++) {
-                try {
-                  const channelInfo = await ari.get(`/channels/${outboundChannelId}`);
-                  const state = channelInfo.data.state;
-                  this.logger.log(`Channel ${outboundChannelId} state: ${state}`);
-                  if (state === 'Up' || state === 'Ring') {
-                    channelReady = true;
-                    break;
-                  }
-                  await new Promise(resolve => setTimeout(resolve, 500));
-                } catch (checkError: any) {
-                  this.logger.warn(`Channel check failed: ${checkError.response?.data?.message || checkError.message}`);
-                  break;
-                }
-              }
-              
-              if (!channelReady) {
-                this.logger.warn(`Channel ${outboundChannelId} not ready, but attempting bridge anyway`);
-              }
-              
-              // Bridge qilish
-              const bridgeResponse = await ari.post(`/bridges`, {
-                type: 'mixing',
-                name: `bridge_${callId}`,
-              });
-              
-              const bridgeId = bridgeResponse.data.id;
-              this.logger.log(`Bridge created: ${bridgeId}`);
-              
-              // Channel larni bridge ga qo'shish
-              try {
-                await ari.post(`/bridges/${bridgeId}/addChannel`, { channel: channelId });
-                this.logger.log(`Channel ${channelId} added to bridge ${bridgeId}`);
-              } catch (addError: any) {
-                this.logger.error(`Error adding channel ${channelId} to bridge: ${JSON.stringify(addError.response?.data || addError.message)}`);
-              }
-              
-              if (outboundChannelId) {
-                try {
-                  await ari.post(`/bridges/${bridgeId}/addChannel`, { channel: outboundChannelId });
-                  this.logger.log(`Channel ${outboundChannelId} added to bridge ${bridgeId}`);
-                } catch (addError: any) {
-                  this.logger.error(`Error adding channel ${outboundChannelId} to bridge: ${JSON.stringify(addError.response?.data || addError.message)}`);
-                  // Channel yo'q bo'lsa, uni yopishga harakat qilish
-                  try {
-                    await ari.delete(`/channels/${outboundChannelId}`);
-                  } catch (deleteError: any) {
-                    // Ignore
-                  }
-                }
-              }
-              
-              this.logger.log(`Channels bridged via dialplan: ${channelId} <-> ${outboundChannelId || 'N/A'}`);
-            } catch (dialplanError: any) {
-              this.logger.error(`Dialplan approach also failed: ${JSON.stringify(dialplanError.response?.data || dialplanError.message)}`);
-              this.logger.error(`Dialplan error stack: ${dialplanError.stack || 'N/A'}`);
-            }
-          }
-        }
+        await this.handleOutboundCall(ari, channelId, callId, fromNumber, toNumber);
       }
       
       // Start recording
@@ -331,24 +160,20 @@ export class AsteriskService {
     }
 
     // Create call record via injected service
-    // Upsert ishlatamiz - agar callId mavjud bo'lsa yangilash, yo'q bo'lsa yaratish
-    if (callsService) {
       try {
         const recordingPath = `/var/spool/asterisk/recordings/call_${callId}.wav`;
-        
-        // Upsert ishlatamiz - bu 409 Conflict muammosini hal qiladi
-        // Agar callId null bo'lsa, unique constraint muammosi bo'lmasligi uchun
-        const call = await callsService.create({
+      
+      const call = await this.callsService.create({
           direction,
           fromNumber,
           toNumber,
-          callId: callId || channelId, // Agar callId null bo'lsa, channelId ni ishlatamiz
+        callId: callId || channelId,
           recordingPath,
           startTime: new Date(),
           status: 'javob berildi',
         });
 
-        this.logger.log(`Call record created/updated: ${call.id}, CallId: ${call.callId}, Direction: ${direction}, From: ${fromNumber}, To: ${toNumber}`);
+      this.logger.log(`Call record created/updated: ${call.id}, CallId: ${call.callId}, Direction: ${direction}, From: ${fromNumber}, To: ${toNumber}`);
 
         // Emit WebSocket event
         if (direction === 'kiruvchi') {
@@ -371,9 +196,6 @@ export class AsteriskService {
       } catch (error: any) {
         this.logger.error('Error creating call record:', error.message || error);
         throw error;
-      }
-    } else {
-      this.logger.error('CallsService not available');
     }
   }
 
@@ -390,34 +212,167 @@ export class AsteriskService {
     });
   }
 
-  async handleChannelDestroyed(event: any, callsService: any) {
+  private async handleOutboundCall(ari: any, channelId: string, callId: string, fromNumber: string, toNumber: string) {
+    // Trunk nomini aniqlash
+    let trunkName = 'SIPnomer';
+    try {
+      const trunks = await this.prisma.sipTrunk.findMany({
+        take: 1,
+        orderBy: { createdAt: 'desc' },
+      });
+      if (trunks.length > 0) {
+        trunkName = trunks[0].name.replace(/\s+/g, '').replace(/[^a-zA-Z0-9-]/g, '');
+        this.logger.log(`Using trunk: ${trunkName}`);
+      }
+    } catch (error: any) {
+      this.logger.warn(`Error fetching trunk, using default: ${trunkName}`);
+    }
+
+    // 1-usul: Dialplan orqali qo'ng'iroq qilish (eng ishonchli)
+    const dialplanEndpoint = `Local/${toNumber}@outbound-trunk`;
+    this.logger.log(`Originating outbound call via dialplan: ${dialplanEndpoint}, From: ${fromNumber}, To: ${toNumber}, Trunk: ${trunkName}`);
+
+    let outboundChannelId: string | null = null;
+
+    try {
+      const dialplanResponse = await ari.post(`/channels`, {
+        endpoint: dialplanEndpoint,
+        app: 'call-center',
+        appArgs: `chiquvchi,${fromNumber},${toNumber}`,
+        callerId: fromNumber,
+        timeout: 30,
+        variables: {
+          FROM_NUMBER: fromNumber,
+          TO_NUMBER: toNumber,
+          TRUNK_NAME: trunkName,
+        },
+      });
+
+      outboundChannelId = dialplanResponse.data.id;
+      this.logger.log(`Outbound channel created: ${outboundChannelId}`);
+
+      // Channel holatini kuzatish va kutish
+      await this.waitForChannelReady(ari, outboundChannelId, 5000);
+
+      // Bridge qilish
+      await this.bridgeChannels(ari, channelId, outboundChannelId, callId);
+    } catch (error: any) {
+      const errorData = error.response?.data || error.message || error;
+      this.logger.error(`Error originating outbound call: ${JSON.stringify(errorData)}`);
+
+      // Fallback: To'g'ridan-to'g'ri PJSIP endpoint orqali sinab ko'rish
+      if (JSON.stringify(errorData).includes('Allocation failed') || JSON.stringify(errorData).includes('Failed to create')) {
+        this.logger.warn(`Dialplan failed, trying direct PJSIP endpoint...`);
+        await this.tryDirectPjsipEndpoint(ari, channelId, callId, fromNumber, toNumber, trunkName);
+      }
+    }
+  }
+
+  private async waitForChannelReady(ari: any, channelId: string, timeout: number = 5000): Promise<boolean> {
+    const startTime = Date.now();
+    while (Date.now() - startTime < timeout) {
+      try {
+        const channelInfo = await ari.get(`/channels/${channelId}`);
+        const state = channelInfo.data.state;
+        this.logger.log(`Channel ${channelId} state: ${state}`);
+        if (state === 'Up' || state === 'Ring' || state === 'Ringing') {
+          return true;
+        }
+        await new Promise(resolve => setTimeout(resolve, 300));
+      } catch (error: any) {
+        this.logger.warn(`Channel check failed: ${error.response?.data?.message || error.message}`);
+        break;
+      }
+    }
+    return false;
+  }
+
+  private async bridgeChannels(ari: any, channelId1: string, channelId2: string | null, callId: string) {
+    try {
+      const bridgeResponse = await ari.post(`/bridges`, {
+        type: 'mixing',
+        name: `bridge_${callId}`,
+      });
+
+      const bridgeId = bridgeResponse.data.id;
+      this.logger.log(`Bridge created: ${bridgeId}`);
+
+      // Birinchi channel ni qo'shish
+      try {
+        await ari.post(`/bridges/${bridgeId}/addChannel`, { channel: channelId1 });
+        this.logger.log(`Channel ${channelId1} added to bridge ${bridgeId}`);
+      } catch (error: any) {
+        this.logger.error(`Error adding channel ${channelId1} to bridge: ${JSON.stringify(error.response?.data || error.message)}`);
+      }
+
+      // Ikkinchi channel ni qo'shish
+      if (channelId2) {
+        try {
+          await ari.post(`/bridges/${bridgeId}/addChannel`, { channel: channelId2 });
+          this.logger.log(`Channel ${channelId2} added to bridge ${bridgeId}`);
+          this.logger.log(`Channels bridged successfully: ${channelId1} <-> ${channelId2}`);
+        } catch (error: any) {
+          this.logger.error(`Error adding channel ${channelId2} to bridge: ${JSON.stringify(error.response?.data || error.message)}`);
+          // Channel yo'q bo'lsa, uni yopishga harakat qilish
+          try {
+            await ari.delete(`/channels/${channelId2}`);
+          } catch (deleteError: any) {
+            // Ignore
+          }
+        }
+      }
+    } catch (error: any) {
+      this.logger.error(`Error bridging channels: ${JSON.stringify(error.response?.data || error.message || error)}`);
+    }
+  }
+
+  private async tryDirectPjsipEndpoint(ari: any, channelId: string, callId: string, fromNumber: string, toNumber: string, trunkName: string) {
+    const outboundEndpoint = `PJSIP/${toNumber}@${trunkName}`;
+    this.logger.log(`Trying direct PJSIP endpoint: ${outboundEndpoint}`);
+
+    try {
+      const outboundChannelResponse = await ari.post(`/channels`, {
+        endpoint: outboundEndpoint,
+        app: 'call-center',
+        appArgs: `chiquvchi,${fromNumber},${toNumber}`,
+        callerId: fromNumber,
+        timeout: 30,
+      });
+
+      const outboundChannelId = outboundChannelResponse.data.id;
+      this.logger.log(`Outbound channel created via PJSIP: ${outboundChannelId}`);
+
+      await this.waitForChannelReady(ari, outboundChannelId, 5000);
+      await this.bridgeChannels(ari, channelId, outboundChannelId, callId);
+    } catch (error: any) {
+      this.logger.error(`Direct PJSIP endpoint also failed: ${JSON.stringify(error.response?.data || error.message)}`);
+    }
+  }
+
+  async handleChannelDestroyed(event: any) {
     const channelId = event.channel.id;
     const callId = event.channel.id || event.channel.name?.split('-')[0] || channelId;
 
     this.logger.log(`ChannelDestroyed: ${channelId}, CallId: ${callId}`);
 
     // Update call record
-    if (callsService) {
       try {
         const endTime = new Date();
         
-        // Find call by callId
-        const call = await callsService.updateByCallId(callId, {
+      const call = await this.callsService.updateByCallId(callId, {
           endTime,
           status: 'yakunlandi',
         });
 
         if (call) {
-          // Calculate duration
           const duration = Math.floor((endTime.getTime() - new Date(call.startTime).getTime()) / 1000);
-          await callsService.update(call.id, {
+        await this.callsService.update(call.id, {
             duration: duration > 0 ? duration : 0,
             status: 'yakunlandi',
           });
 
           this.logger.log(`Call record updated: ${call.id}, Duration: ${duration}s`);
           
-          // Emit WebSocket event
           this.wsGateway.emitCallStatus({
             callId: call.id,
             state: 'yakunlandi',
@@ -427,7 +382,6 @@ export class AsteriskService {
         }
       } catch (error: any) {
         this.logger.error('Error updating call record:', error.response?.data || error.message || error);
-      }
     }
     
     this.wsGateway.emitCallStatus({

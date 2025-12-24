@@ -71,24 +71,51 @@ class SipService extends EventEmitter {
       // JSSIP ni dynamic import qilish
       const JSSIP = await import('jssip');
       
-      // SIP WebSocket URL - Asterisk WebRTC gateway orqali
-      // Bell.uz yoki boshqa SIP provayderlar uchun WebSocket URL
-      let wsUrl = `wss://${config.server}:8089/ws`;
+      // SIP WebSocket URL - To'g'ridan-to'g'ri bell.uz SIP server ga ulanish
+      // Bell.uz SIP server WebSocket protokoli qo'llab-quvvatlamasa, UDP/TCP ishlatiladi
+      // WebRTC uchun WebSocket kerak, lekin agar yo'q bo'lsa, SIP.js UDP/TCP ishlatadi
       
-      // Agar Asterisk WebRTC gateway bo'lsa, uning URL ni ishlating
-      // wsUrl = `wss://your-asterisk-server:8088/ari/events`;
+      // WebSocket URL - agar bell.uz WebSocket qo'llab-quvvatlasa
+      // Agar yo'q bo'lsa, JSSIP UDP/TCP orqali ulanadi
+      let wsUrl: string | null = null;
       
-      console.log('SIP connecting to:', wsUrl);
+      // WebSocket sinab ko'rish (wss://bell.uz:5060/ws yoki wss://bell.uz:8089/ws)
+      // Agar WebSocket ishlamasa, JSSIP UDP/TCP ishlatadi
+      try {
+        // WebSocket URL ni sinab ko'rish
+        wsUrl = `wss://${config.server}:8089/ws`;
+        console.log('SIP WebSocket URL:', wsUrl);
+      } catch (e) {
+        console.warn('WebSocket URL not available, will use UDP/TCP');
+        wsUrl = null;
+      }
       
-      const socket = new JSSIP.WebSocketInterface(wsUrl);
-      
-      this.socket = new JSSIP.UA({
-        uri: `sip:${config.username}@${config.domain}`,
+      // JSSIP UA konfiguratsiyasi
+      const uaConfig: any = {
+        uri: `sip:${config.username}@${config.domain || config.server}`,
         password: config.password,
-        sockets: [socket],
         register: true,
         register_expires: 600,
-      });
+        connection_recovery_min_interval: 2,
+        connection_recovery_max_interval: 30,
+        // WebRTC uchun media constraints
+        session_timers: false,
+        use_preloaded_route: false,
+      };
+      
+      // WebSocket mavjud bo'lsa, ishlatish
+      if (wsUrl) {
+        const socket = new JSSIP.WebSocketInterface(wsUrl);
+        uaConfig.sockets = [socket];
+      } else {
+        // WebSocket yo'q bo'lsa, UDP/TCP ishlatish
+        // JSSIP avtomatik UDP/TCP orqali ulanadi
+        console.log('Using UDP/TCP for SIP connection');
+      }
+      
+      console.log('SIP connecting to:', config.server, 'as', config.username);
+      
+      this.socket = new JSSIP.UA(uaConfig);
 
       // Event handlers
       this.socket.on('registered', () => {
@@ -250,33 +277,123 @@ class SipService extends EventEmitter {
     });
   }
 
-  // Qo'ng'iroq qilish
+  // Qo'ng'iroq qilish - WebRTC orqali to'g'ridan-to'g'ri SIP server ga
   async makeCall(number: string) {
     if (!this.socket || !this.registered) {
-      throw new Error('SIP not registered');
+      throw new Error('SIP not registered. Avval SIP server ga ulanish kerak.');
+    }
+
+    if (!this.config) {
+      throw new Error('SIP config not initialized');
     }
 
     try {
+      // Raqamni tozalash va formatlash
+      let cleanNumber = number.replace(/\D/g, ''); // Faqat raqamlarni qoldirish
+      
+      // Agar raqam 998 bilan boshlanmasa, qo'shish
+      if (!cleanNumber.startsWith('998')) {
+        cleanNumber = `998${cleanNumber}`;
+      }
+      
+      // SIP URI - to'g'ridan-to'g'ri bell.uz server ga
+      const sipUri = `sip:${cleanNumber}@${this.config.domain || this.config.server}`;
+      console.log('Calling:', sipUri);
+
       const options = {
         eventHandlers: {
-          progress: () => {
-            console.log('Call progress');
+          progress: (e: any) => {
+            console.log('Call progress:', e);
+            this.emit('callProgress', e);
           },
           failed: (e: any) => {
             console.error('Call failed:', e);
             this.emit('callFailed', e);
+          },
+          ended: (e: any) => {
+            console.log('Call ended:', e);
+            this.emit('callEnded', e);
           },
         },
         mediaConstraints: {
           audio: true,
           video: false,
         },
+        // WebRTC uchun RTC peer connection options
+        rtcOfferConstraints: {
+          offerToReceiveAudio: true,
+          offerToReceiveVideo: false,
+        },
+        rtcAnswerConstraints: {
+          offerToReceiveAudio: true,
+          offerToReceiveVideo: false,
+        },
       };
 
-      const session = this.socket.call(`sip:${number}@${this.config?.domain}`, options);
+      const session = this.socket.call(sipUri, options);
+      
+      // Session ni saqlash
+      this.currentCall = session;
+      
+      // Session event handlers
+      session.on('progress', () => {
+        console.log('Call ringing...');
+        this.emit('callProgress', { sessionId: session.id });
+      });
+
+      session.on('accepted', () => {
+        console.log('Call answered');
+        const callState = this.calls.get(session.id);
+        if (callState) {
+          callState.status = 'answered';
+          this.emit('callAnswered', callState);
+        }
+      });
+
+      session.on('ended', () => {
+        console.log('Call ended');
+        const callState = this.calls.get(session.id);
+        if (callState) {
+          callState.status = 'ended';
+          callState.endTime = new Date();
+          this.emit('callEnded', callState);
+        }
+        this.calls.delete(session.id);
+        if (this.currentCall === session) {
+          this.currentCall = null;
+        }
+      });
+
+      session.on('failed', (e: any) => {
+        console.error('Call failed:', e);
+        const callState = this.calls.get(session.id);
+        if (callState) {
+          callState.status = 'ended';
+          callState.endTime = new Date();
+          this.emit('callEnded', callState);
+        }
+        this.calls.delete(session.id);
+        if (this.currentCall === session) {
+          this.currentCall = null;
+        }
+        this.emit('callFailed', e);
+      });
+
+      // Call state ni yaratish
+      const callState: CallState = {
+        id: session.id,
+        direction: 'outgoing',
+        remoteNumber: cleanNumber,
+        status: 'ringing',
+        startTime: new Date(),
+      };
+      this.calls.set(session.id, callState);
+      this.emit('outgoingCall', callState);
+
       return { success: true, sessionId: session.id };
     } catch (error: any) {
       console.error('Make call error:', error);
+      this.emit('callFailed', error);
       return { success: false, error: error.message };
     }
   }

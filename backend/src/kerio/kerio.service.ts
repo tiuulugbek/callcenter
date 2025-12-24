@@ -47,7 +47,7 @@ export class KerioService {
     
     this.apiClient = axios.create({
       baseURL: `https://${this.pbxHost}/api/rest/v1`, // Kerio Operator REST API endpoint
-      timeout: 30000,
+      timeout: 10000, // Timeout ni qisqartirish (10 soniya)
       auth: {
         username: this.apiUsername,
         password: this.apiPassword,
@@ -58,7 +58,12 @@ export class KerioService {
       validateStatus: () => true, // Barcha status kodlarni qabul qilish
     });
 
-    this.logger.log(`Kerio Operator service initialized for ${this.pbxHost}`);
+    // Kerio Operator ixtiyoriy - agar mavjud bo'lmasa, xato chiqarmaslik
+    if (!this.apiUsername || !this.apiPassword) {
+      this.logger.debug('Kerio Operator credentials not configured - service will be disabled');
+    } else {
+      this.logger.log(`Kerio Operator service initialized for ${this.pbxHost} (optional)`);
+    }
   }
 
   /**
@@ -93,8 +98,14 @@ export class KerioService {
       this.logger.warn(`Kerio Operator API returned status ${response.status}`);
       return false;
     } catch (error: any) {
-      this.logger.error('Kerio Operator authentication error:', error.message);
-      // Network xatolik bo'lsa ham false qaytarish
+      // Network xatolik yoki timeout bo'lsa, faqat debug log qilish
+      // Bu xato emas, chunki Kerio Operator ixtiyoriy
+      if (error.code === 'ECONNREFUSED' || error.code === 'ETIMEDOUT' || error.message?.includes('timeout')) {
+        this.logger.debug(`Kerio Operator not available (${this.pbxHost}): ${error.message}`);
+      } else {
+        this.logger.debug(`Kerio Operator authentication error: ${error.message}`);
+      }
+      // Network xatolik bo'lsa ham false qaytarish (xato emas)
       return false;
     }
   }

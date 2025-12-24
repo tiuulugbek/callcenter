@@ -160,7 +160,8 @@ contact_user = ${data.username}
 retry_interval = 60
 forbidden_retry_interval = 300
 expiration = 3600
-outbound_proxy = sip:${data.host}:${port}
+line = ${trunkName}-registration
+endpoint = ${trunkName}
 `;
   }
 

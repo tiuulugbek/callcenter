@@ -228,28 +228,23 @@ export class AsteriskService {
       this.logger.warn(`Error fetching trunk, using default: ${trunkName}`);
     }
 
-    // 1-usul: Dialplan orqali qo'ng'iroq qilish (eng ishonchli)
-    const dialplanEndpoint = `Local/${toNumber}@outbound-trunk`;
-    this.logger.log(`Originating outbound call via dialplan: ${dialplanEndpoint}, From: ${fromNumber}, To: ${toNumber}, Trunk: ${trunkName}`);
+    // 1-usul: To'g'ridan-to'g'ri PJSIP endpoint orqali qo'ng'iroq qilish
+    const outboundEndpoint = `PJSIP/${toNumber}@${trunkName}`;
+    this.logger.log(`Originating outbound call via PJSIP: ${outboundEndpoint}, From: ${fromNumber}, To: ${toNumber}, Trunk: ${trunkName}`);
 
     let outboundChannelId: string | null = null;
 
     try {
-      const dialplanResponse = await ari.post(`/channels`, {
-        endpoint: dialplanEndpoint,
+      const pjsipResponse = await ari.post(`/channels`, {
+        endpoint: outboundEndpoint,
         app: 'call-center',
         appArgs: `chiquvchi,${fromNumber},${toNumber}`,
         callerId: fromNumber,
         timeout: 30,
-        variables: {
-          FROM_NUMBER: fromNumber,
-          TO_NUMBER: toNumber,
-          TRUNK_NAME: trunkName,
-        },
       });
 
-      outboundChannelId = dialplanResponse.data.id;
-      this.logger.log(`Outbound channel created: ${outboundChannelId}`);
+      outboundChannelId = pjsipResponse.data.id;
+      this.logger.log(`Outbound channel created via PJSIP: ${outboundChannelId}`);
 
       // Channel holatini kuzatish va kutish
       await this.waitForChannelReady(ari, outboundChannelId, 5000);
@@ -258,12 +253,38 @@ export class AsteriskService {
       await this.bridgeChannels(ari, channelId, outboundChannelId, callId);
     } catch (error: any) {
       const errorData = error.response?.data || error.message || error;
-      this.logger.error(`Error originating outbound call: ${JSON.stringify(errorData)}`);
+      this.logger.error(`Error originating outbound call via PJSIP: ${JSON.stringify(errorData)}`);
 
-      // Fallback: To'g'ridan-to'g'ri PJSIP endpoint orqali sinab ko'rish
-      if (JSON.stringify(errorData).includes('Allocation failed') || JSON.stringify(errorData).includes('Failed to create')) {
-        this.logger.warn(`Dialplan failed, trying direct PJSIP endpoint...`);
-        await this.tryDirectPjsipEndpoint(ari, channelId, callId, fromNumber, toNumber, trunkName);
+      // Fallback: Dialplan orqali qo'ng'iroq qilish
+      this.logger.warn(`PJSIP endpoint failed, trying dialplan approach...`);
+      try {
+        const dialplanEndpoint = `Local/${toNumber}@outbound-trunk`;
+        this.logger.log(`Trying dialplan endpoint: ${dialplanEndpoint}`);
+
+        const dialplanResponse = await ari.post(`/channels`, {
+          endpoint: dialplanEndpoint,
+          app: 'call-center',
+          appArgs: `chiquvchi,${fromNumber},${toNumber}`,
+          callerId: fromNumber,
+          timeout: 30,
+          variables: {
+            FROM_NUMBER: fromNumber,
+            TO_NUMBER: toNumber,
+            TRUNK_NAME: trunkName,
+          },
+        });
+
+        outboundChannelId = dialplanResponse.data.id;
+        this.logger.log(`Outbound channel created via dialplan: ${outboundChannelId}`);
+
+        // Channel holatini kuzatish va kutish
+        await this.waitForChannelReady(ari, outboundChannelId, 5000);
+
+        // Bridge qilish
+        await this.bridgeChannels(ari, channelId, outboundChannelId, callId);
+      } catch (dialplanError: any) {
+        const dialplanErrorData = dialplanError.response?.data || dialplanError.message || dialplanError;
+        this.logger.error(`Dialplan approach also failed: ${JSON.stringify(dialplanErrorData)}`);
       }
     }
   }

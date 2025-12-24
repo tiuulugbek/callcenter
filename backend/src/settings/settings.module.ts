@@ -10,7 +10,7 @@ import { PrismaModule } from '../common/prisma/prisma.module';
   imports: [OperatorsModule, PrismaModule],
   providers: [SettingsService, SipTrunkService, SipExtensionService],
   controllers: [SettingsController],
-  exports: [SettingsService],
+  exports: [SettingsService, SipTrunkService, SipExtensionService],
 })
 export class SettingsModule {}
 

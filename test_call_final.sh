@@ -12,25 +12,37 @@ echo "=== Qo'ng'iroq Test (Optimallashtirilgan) ==="
 echo ""
 
 echo "1. Token olish..."
+echo "Login qilish (admin/admin123)..."
 RESPONSE=$(curl -s -X POST https://crm24.soundz.uz/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{"username":"admin","password":"admin123"}')
+
+echo "Response: $RESPONSE"
 
 if echo "$RESPONSE" | grep -q "Unauthorized"; then
   echo "Admin123 bilan login muvaffaqiyatsiz. 'password' bilan sinab ko'rish..."
   RESPONSE=$(curl -s -X POST https://crm24.soundz.uz/api/auth/login \
     -H "Content-Type: application/json" \
     -d '{"username":"admin","password":"password"}')
+  echo "Response: $RESPONSE"
 fi
 
+# Token ni ajratib olish
 TOKEN=$(echo "$RESPONSE" | grep -o '"access_token":"[^"]*' | cut -d'"' -f4)
 
 if [ -z "$TOKEN" ]; then
   echo "❌ Token olishda xatolik."
+  echo "To'liq response: $RESPONSE"
+  echo ""
+  echo "Backend holatini tekshirish:"
+  pm2 status
+  echo ""
+  echo "Backend loglarini ko'rish:"
+  pm2 logs call-center-backend --lines 20 --nostream
   exit 1
 fi
 
-echo "✅ Token olingan"
+echo "✅ Token olingan: ${TOKEN:0:20}..."
 echo ""
 
 echo "2. Qo'ng'iroq qilish..."

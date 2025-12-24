@@ -7,7 +7,6 @@ import { OperatorsModule } from './operators/operators.module';
 import { AuthModule } from './auth/auth.module';
 import { SettingsModule } from './settings/settings.module';
 import { ContactsModule } from './contacts/contacts.module';
-import { KerioModule } from './kerio/kerio.module';
 import { PrismaModule } from './common/prisma/prisma.module';
 import { WebSocketModule } from './common/websocket/websocket.module';
 
@@ -25,7 +24,6 @@ import { WebSocketModule } from './common/websocket/websocket.module';
     AuthModule,
     SettingsModule,
     ContactsModule,
-    KerioModule,
   ],
 })
 export class AppModule {}

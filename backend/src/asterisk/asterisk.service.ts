@@ -4,13 +4,13 @@ import { WebSocketGateway } from '../common/websocket/websocket.gateway';
 import { CallsService } from '../calls/calls.service';
 
 /**
- * AsteriskService - CTI Monitoring System
+ * AsteriskService - Call Log Monitoring System
  * 
- * Bu tizim PBX emas, faqat monitoring/CTI tizimi.
- * Asterisk faqat ARI orqali event larni kuzatadi va loglaydi.
+ * Bu tizim PBX emas, faqat call log monitoring tizimi.
+ * Asterisk ARI orqali event larni kuzatadi va call loglarni yaratadi.
  * 
- * Qo'ng'iroqlar tashqi SIP server (bell.uz) orqali keladi.
- * Bu tizim qo'ng'iroqlarni boshlaydi yoki boshqarmaydi.
+ * Qo'ng'iroqlar tashqi SIP provider (bell.uz) orqali keladi.
+ * Bu tizim qo'ng'iroqlarni boshlaydi yoki boshqarmaydi - faqat kuzatadi va loglaydi.
  */
 @Injectable()
 export class AsteriskService {

@@ -54,10 +54,6 @@ export const callsApi = {
     })
     return response.data
   },
-  makeOutbound: async (data: { fromNumber: string; toNumber: string; extension?: string }) => {
-    const response = await api.post('/calls/outbound', data)
-    return response.data
-  },
 }
 
 export const chatsApi = {
@@ -92,44 +88,6 @@ export const settingsApi = {
     const response = await api.post('/settings/facebook', { pageAccessToken, appSecret, verifyToken })
     return response.data
   },
-  getSipExtensions: async () => {
-    const response = await api.get('/settings/sip-extensions')
-    return response.data
-  },
-  createSipExtension: async (data: { operatorId: string; extension: string; password: string }) => {
-    const response = await api.post('/settings/sip-extensions', data)
-    return response.data
-  },
-  getSipTrunks: async () => {
-    const response = await api.get('/settings/sip-trunks')
-    return response.data
-  },
-  createSipTrunk: async (data: {
-    name: string
-    host: string
-    username: string
-    password: string
-    port?: number
-    transport?: 'udp' | 'tcp' | 'tls'
-  }) => {
-    const response = await api.post('/settings/sip-trunks', data)
-    return response.data
-  },
-  updateSipTrunk: async (id: string, data: {
-    name?: string
-    host?: string
-    username?: string
-    password?: string
-    port?: number
-    transport?: 'udp' | 'tcp' | 'tls'
-  }) => {
-    const response = await api.put(`/settings/sip-trunks/${id}`, data)
-    return response.data
-  },
-  deleteSipTrunk: async (id: string) => {
-    const response = await api.delete(`/settings/sip-trunks/${id}`)
-    return response.data
-  },
 }
 
 export const operatorsApi = {
@@ -139,43 +97,6 @@ export const operatorsApi = {
   },
 }
 
-export const kerioApi = {
-  verifyAuth: async () => {
-    try {
-      console.log('kerioApi.verifyAuth chaqirildi')
-      console.log('API URL:', API_URL)
-      console.log('Token:', localStorage.getItem('token') ? 'Mavjud' : 'Yo\'q')
-      
-      const response = await api.get('/kerio/auth/verify')
-      console.log('kerioApi.verifyAuth javob:', response.data)
-      return response.data
-    } catch (error: any) {
-      console.error('Kerio verifyAuth error:', error)
-      console.error('Error response:', error.response)
-      console.error('Error status:', error.response?.status)
-      console.error('Error data:', error.response?.data)
-      throw error
-    }
-  },
-  syncCalls: async (params?: { startDate?: string; endDate?: string; extension?: string }) => {
-    try {
-      const response = await api.post('/kerio/sync', null, { params })
-      return response.data
-    } catch (error: any) {
-      console.error('Kerio syncCalls error:', error)
-      throw error
-    }
-  },
-  getRecording: async (pbxCallId: string) => {
-    try {
-      const response = await api.get(`/kerio/calls/${pbxCallId}/recording`)
-      return response.data
-    } catch (error: any) {
-      console.error('Kerio getRecording error:', error)
-      throw error
-    }
-  },
-}
 
 export const contactsApi = {
   getAll: async (search?: string) => {

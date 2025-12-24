@@ -1,17 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { OperatorsService } from '../operators/operators.service';
-import { SipTrunkService } from './sip-trunk.service';
-import { SipExtensionService } from './sip-extension.service';
 import axios from 'axios';
 
 @Injectable()
 export class SettingsService {
   constructor(
     private configService: ConfigService,
-    private operatorsService: OperatorsService,
-    private sipTrunkService: SipTrunkService,
-    private sipExtensionService: SipExtensionService,
   ) {}
 
   async getSettings() {
@@ -24,10 +18,6 @@ export class SettingsService {
         pageAccessToken: this.configService.get('FACEBOOK_PAGE_ACCESS_TOKEN') || '',
         appSecret: this.configService.get('FACEBOOK_APP_SECRET') || '',
         verifyToken: this.configService.get('FACEBOOK_VERIFY_TOKEN') || '',
-      },
-      asterisk: {
-        ariUrl: this.configService.get('ASTERISK_ARI_URL') || 'http://localhost:8088/ari',
-        ariUsername: this.configService.get('ASTERISK_ARI_USERNAME') || 'backend',
       },
     };
   }
@@ -82,44 +72,6 @@ export class SettingsService {
     } catch (error) {
       throw new Error(`Telegram ulanishi xatosi: ${error.message}`);
     }
-  }
-
-  async createSipExtension(operatorId: string, extension: string, password: string) {
-    return this.sipExtensionService.createExtension(operatorId, extension, password);
-  }
-
-  async getSipExtensions() {
-    return this.sipExtensionService.getExtensions();
-  }
-
-  async createSipTrunk(data: {
-    name: string;
-    host: string;
-    username: string;
-    password: string;
-    port?: number;
-    transport?: 'udp' | 'tcp' | 'tls';
-  }) {
-    return this.sipTrunkService.createTrunkConfig(data);
-  }
-
-  async getSipTrunks() {
-    return this.sipTrunkService.getTrunks();
-  }
-
-  async updateSipTrunk(id: string, data: {
-    name?: string;
-    host?: string;
-    username?: string;
-    password?: string;
-    port?: number;
-    transport?: 'udp' | 'tcp' | 'tls';
-  }) {
-    return this.sipTrunkService.updateTrunkConfig(id, data);
-  }
-
-  async deleteSipTrunk(id: string) {
-    return this.sipTrunkService.deleteTrunkConfig(id);
   }
 }
 

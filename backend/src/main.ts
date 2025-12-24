@@ -19,9 +19,6 @@ async function bootstrap() {
   const port = process.env.PORT || 4000;
   await app.listen(port);
   console.log(`Backend server running on port ${port}`);
-
-  // Kerio Operator logikasi endi faqat Settings sahifasidagi Kerio Operator tabida ishlatiladi
-  // Avtomatik sync va polling o'chirildi - faqat qo'lda boshqariladi
 }
 
 bootstrap();

@@ -31,52 +31,5 @@ export class SettingsController {
       message: 'Facebook sozlamalari yangilandi. Iltimos, .env faylini ham yangilang.',
     };
   }
-
-  @Get('sip-extensions')
-  getSipExtensions() {
-    return this.settingsService.getSipExtensions();
-  }
-
-  @Post('sip-extensions')
-  async createSipExtension(@Body() body: { operatorId: string; extension: string; password: string }) {
-    return this.settingsService.createSipExtension(body.operatorId, body.extension, body.password);
-  }
-
-  @Get('sip-trunks')
-  getSipTrunks() {
-    return this.settingsService.getSipTrunks();
-  }
-
-  @Post('sip-trunks')
-  async createSipTrunk(@Body() body: {
-    name: string;
-    host: string;
-    username: string;
-    password: string;
-    port?: number;
-    transport?: 'udp' | 'tcp' | 'tls';
-  }) {
-    return this.settingsService.createSipTrunk(body);
-  }
-
-  @Put('sip-trunks/:id')
-  async updateSipTrunk(
-    @Param('id') id: string,
-    @Body() body: {
-      name?: string;
-      host?: string;
-      username?: string;
-      password?: string;
-      port?: number;
-      transport?: 'udp' | 'tcp' | 'tls';
-    },
-  ) {
-    return this.settingsService.updateSipTrunk(id, body);
-  }
-
-  @Delete('sip-trunks/:id')
-  async deleteSipTrunk(@Param('id') id: string) {
-    return this.settingsService.deleteSipTrunk(id);
-  }
 }
 

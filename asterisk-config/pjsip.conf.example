@@ -115,6 +115,7 @@ password = QWErty!@#456
 ; SIP Trunk: SIPnomer
 ; Generated automatically - 2025-12-23T11:02:04.445Z
 ; Direct registration to SIP provider (bell.uz) - Independent from Kerio Operator
+; Direct registration to SIP provider (bell.uz) - Independent from Kerio Operator
 
 [SIPnomer]
 type = aor
@@ -122,6 +123,7 @@ contact = sip:998785553322@bell.uz:5060
 qualify_frequency = 60
 qualify_timeout = 3.0
 maximum_expiration = 3600
+remove_existing = yes
 remove_existing = yes
 
 [SIPnomer]

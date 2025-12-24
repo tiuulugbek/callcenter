@@ -157,3 +157,15 @@ type = identify
 endpoint = SIPnomer
 match = bell.uz
 
+[SIPnomer-registration]
+type = registration
+transport = transport-udp
+outbound_auth = SIPnomer-auth
+server_uri = sip:bell.uz:5060
+client_uri = sip:998785553322@bell.uz:5060
+contact_user = 998785553322
+retry_interval = 60
+forbidden_retry_interval = 300
+expiration = 3600
+outbound_proxy = sip:bell.uz:5060
+

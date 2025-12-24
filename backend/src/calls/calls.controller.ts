@@ -1,18 +1,13 @@
 import {
   Controller,
   Get,
-  Post,
   Param,
   Query,
-  Body,
   UseGuards,
   Res,
-  Inject,
-  forwardRef,
 } from '@nestjs/common';
 import { Response } from 'express';
 import { CallsService } from './calls.service';
-import { AsteriskService } from '../asterisk/asterisk.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -22,8 +17,6 @@ import * as path from 'path';
 export class CallsController {
   constructor(
     private callsService: CallsService,
-    @Inject(forwardRef(() => AsteriskService))
-    private asteriskService: AsteriskService,
   ) {}
 
   @Get()
@@ -53,9 +46,8 @@ export class CallsController {
     return res.sendFile(path.resolve(filePath));
   }
 
-  @Post('outbound')
-  makeOutboundCall(@Body() data: { fromNumber: string; toNumber: string; extension?: string; trunkName?: string }) {
-    return this.asteriskService.makeOutboundCall(data);
-  }
+  // Outbound call endpoint olib tashlandi
+  // Bu tizim PBX emas, faqat monitoring/CTI tizimi
+  // Qo'ng'iroqlar tashqi SIP server orqali keladi
 }
 

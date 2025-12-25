@@ -141,5 +141,45 @@ export const contactsApi = {
   },
 }
 
+export const extensionsApi = {
+  getAll: async () => {
+    const response = await api.get('/extensions')
+    return response.data
+  },
+  getById: async (id: string) => {
+    const response = await api.get(`/extensions/${id}`)
+    return response.data
+  },
+  getStatus: async (id: string) => {
+    const response = await api.get(`/extensions/${id}/status`)
+    return response.data
+  },
+  create: async (data: {
+    extension: string
+    password: string
+    displayName?: string
+    context?: string
+    transport?: string
+    codecs?: string
+  }) => {
+    const response = await api.post('/extensions', data)
+    return response.data
+  },
+  update: async (id: string, data: {
+    password?: string
+    displayName?: string
+    context?: string
+    transport?: string
+    codecs?: string
+  }) => {
+    const response = await api.put(`/extensions/${id}`, data)
+    return response.data
+  },
+  delete: async (id: string) => {
+    const response = await api.delete(`/extensions/${id}`)
+    return response.data
+  },
+}
+
 export default api
 

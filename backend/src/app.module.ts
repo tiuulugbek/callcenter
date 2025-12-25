@@ -7,6 +7,7 @@ import { OperatorsModule } from './operators/operators.module';
 import { AuthModule } from './auth/auth.module';
 import { SettingsModule } from './settings/settings.module';
 import { ContactsModule } from './contacts/contacts.module';
+import { ExtensionsModule } from './extensions/extensions.module';
 import { PrismaModule } from './common/prisma/prisma.module';
 import { WebSocketModule } from './common/websocket/websocket.module';
 
@@ -24,6 +25,7 @@ import { WebSocketModule } from './common/websocket/websocket.module';
     AuthModule,
     SettingsModule,
     ContactsModule,
+    ExtensionsModule,
   ],
 })
 export class AppModule {}

@@ -104,3 +104,18 @@ model SipTrunk {
   @@map("sip_trunks")
 }
 
+model SipExtension {
+  id          String   @id @default(uuid())
+  extension   String   @unique
+  password    String
+  displayName String?  @map("display_name")
+  context     String   @default("from-internal")
+  transport   String   @default("transport-udp")
+  codecs      String   @default("ulaw,alaw,g729") // comma-separated
+  status      String   @default("unavailable") // unavailable, available
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("sip_extensions")
+}
+

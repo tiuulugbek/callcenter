@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { WebSocketGateway } from '../common/websocket/websocket.gateway';
 import { CallsService } from '../calls/calls.service';
 import { PrismaService } from '../common/prisma/prisma.service';
+import axios from 'axios';
 
 /**
  * AsteriskService - Call Log Monitoring System
@@ -116,9 +117,31 @@ export class AsteriskService {
         });
       }
 
+      // Asterisk kanalini dialplanda davom ettirish (FreePBX operator telefonini jiringlatishi uchun)
+      try {
+        const ariUrl = (this.configService.get('ASTERISK_ARI_URL') || 'http://127.0.0.1:8088/ari').replace('localhost', '127.0.0.1').replace(/\/+$/, '');
+        const username = (this.configService.get('ASTERISK_ARI_USERNAME') || 'backend').trim().replace(/['"]/g, '');
+        const password = (this.configService.get('ASTERISK_ARI_PASSWORD') || 'secure_password').trim().replace(/['"]/g, '');
+        await axios.post(`${ariUrl}/channels/${channelId}/continue`, {}, {
+          auth: { username, password },
+        });
+        this.logger.log(`Channel ${channelId} successfully continued in dialplan`);
+      } catch (err: any) {
+        this.logger.debug(`Could not continue channel ${channelId}: ${err.message}`);
+      }
+
       return call;
     } catch (error: any) {
       this.logger.error('Error creating call record:', error.message || error);
+      // Xatolik bo'lsa ham qo'ng'iroq uzilib qolmasligi uchun continue qilamiz
+      try {
+        const ariUrl = (this.configService.get('ASTERISK_ARI_URL') || 'http://127.0.0.1:8088/ari').replace('localhost', '127.0.0.1').replace(/\/+$/, '');
+        const username = (this.configService.get('ASTERISK_ARI_USERNAME') || 'backend').trim().replace(/['"]/g, '');
+        const password = (this.configService.get('ASTERISK_ARI_PASSWORD') || 'secure_password').trim().replace(/['"]/g, '');
+        await axios.post(`${ariUrl}/channels/${channelId}/continue`, {}, {
+          auth: { username, password },
+        });
+      } catch (e) {}
       throw error;
     }
   }

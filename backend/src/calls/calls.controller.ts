@@ -47,7 +47,16 @@ export class CallsController {
       if (fs.existsSync(mp3Path)) {
         filePath = mp3Path;
       } else {
-        return res.status(404).json({ message: 'Yozuv fayli topilmadi' });
+        const baseName = path.basename(filePath);
+        const monitorWav = path.join('/var/spool/asterisk/monitor', baseName);
+        const monitorMp3 = monitorWav.replace(/\.wav$/i, '.mp3');
+        if (fs.existsSync(monitorWav)) {
+          filePath = monitorWav;
+        } else if (fs.existsSync(monitorMp3)) {
+          filePath = monitorMp3;
+        } else {
+          return res.status(404).json({ message: 'Yozuv fayli topilmadi' });
+        }
       }
     }
 

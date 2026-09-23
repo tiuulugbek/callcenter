@@ -20,7 +20,8 @@ export class AsteriskGateway implements OnModuleInit {
     private asteriskService: AsteriskService,
     private moduleRef: ModuleRef,
   ) {
-    this.ariUrl = this.configService.get('ASTERISK_ARI_WS_URL') || 'ws://127.0.0.1:8088/ari/events';
+    const rawUrl = this.configService.get('ASTERISK_ARI_WS_URL') || 'ws://127.0.0.1:8088/ari/events';
+    this.ariUrl = rawUrl.replace('localhost', '127.0.0.1').replace(/\/+$/, '');
     this.ariUsername = this.configService.get('ASTERISK_ARI_USERNAME') || 'backend';
     this.ariPassword = this.configService.get('ASTERISK_ARI_PASSWORD') || 'secure_password';
   }

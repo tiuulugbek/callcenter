@@ -20,7 +20,7 @@ export class AsteriskGateway implements OnModuleInit {
     private asteriskService: AsteriskService,
     private moduleRef: ModuleRef,
   ) {
-    this.ariUrl = this.configService.get('ASTERISK_ARI_WS_URL') || 'ws://localhost:8088/ari/events';
+    this.ariUrl = this.configService.get('ASTERISK_ARI_WS_URL') || 'ws://127.0.0.1:8088/ari/events';
     this.ariUsername = this.configService.get('ASTERISK_ARI_USERNAME') || 'backend';
     this.ariPassword = this.configService.get('ASTERISK_ARI_PASSWORD') || 'secure_password';
   }
@@ -38,14 +38,8 @@ export class AsteriskGateway implements OnModuleInit {
   private async connect() {
     try {
       this.logger.log(`Connecting to ARI at ${this.ariUrl} with username: ${this.ariUsername}...`);
-      const auth = Buffer.from(`${this.ariUsername}:${this.ariPassword}`).toString('base64');
-      const url = `${this.ariUrl}?api_key=${this.ariUsername}:${this.ariPassword}&app=call-center`;
-      this.ws = new WebSocket(url, {
-        headers: {
-          Authorization: `Basic ${auth}`,
-        },
-        origin: 'http://localhost:8088',
-      });
+      const url = `${this.ariUrl}?app=call-center&api_key=${this.ariUsername}:${this.ariPassword}`;
+      this.ws = new WebSocket(url);
 
       this.ws.on('open', () => {
         this.logger.log('Connected to Asterisk ARI WebSocket');

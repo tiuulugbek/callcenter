@@ -18,7 +18,7 @@ const Login = () => {
 
     try {
       await login(username, password)
-      navigate('/dashboard')
+      navigate('/kanban')
     } catch (err: any) {
       console.error('Login error:', err)
       if (err.response?.data?.message) {

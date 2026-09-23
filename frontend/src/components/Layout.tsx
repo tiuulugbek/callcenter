@@ -12,6 +12,12 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
         <div className="navbar-brand">Call Center</div>
         <div className="navbar-menu">
           <Link
+            to="/kanban"
+            className={location.pathname === '/kanban' ? 'active' : ''}
+          >
+            Bitimlar (Kanban)
+          </Link>
+          <Link
             to="/dashboard"
             className={location.pathname === '/dashboard' ? 'active' : ''}
           >
@@ -34,12 +40,6 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
             className={location.pathname === '/contacts' ? 'active' : ''}
           >
             Mijozlar
-          </Link>
-          <Link
-            to="/kanban"
-            className={location.pathname === '/kanban' ? 'active' : ''}
-          >
-            Bitimlar (Kanban)
           </Link>
           <Link
             to="/settings"

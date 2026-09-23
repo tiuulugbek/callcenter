@@ -5,8 +5,9 @@ import {
   Query,
   UseGuards,
   Res,
+  Req,
 } from '@nestjs/common';
-import { Response } from 'express';
+import { Request, Response } from 'express';
 import { CallsService } from './calls.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import * as fs from 'fs';
@@ -30,20 +31,55 @@ export class CallsController {
   }
 
   @Get(':id/recording')
-  async getRecording(@Param('id') id: string, @Res() res: Response) {
+  async getRecording(
+    @Param('id') id: string,
+    @Req() req: Request,
+    @Res() res: Response,
+  ) {
     const call = await this.callsService.findById(id);
     if (!call || !call.recordingPath) {
       return res.status(404).json({ message: 'Yozuv topilmadi' });
     }
 
-    const filePath = call.recordingPath;
+    let filePath = call.recordingPath;
     if (!fs.existsSync(filePath)) {
-      return res.status(404).json({ message: 'Yozuv fayli topilmadi' });
+      const mp3Path = filePath.replace(/\.wav$/i, '.mp3');
+      if (fs.existsSync(mp3Path)) {
+        filePath = mp3Path;
+      } else {
+        return res.status(404).json({ message: 'Yozuv fayli topilmadi' });
+      }
     }
 
-    res.setHeader('Content-Type', 'audio/wav');
-    res.setHeader('Content-Disposition', `attachment; filename="call_${call.id}.wav"`);
-    return res.sendFile(path.resolve(filePath));
+    const stat = fs.statSync(filePath);
+    const fileSize = stat.size;
+    const isMp3 = filePath.endsWith('.mp3');
+    const contentType = isMp3 ? 'audio/mpeg' : 'audio/wav';
+    const range = req.headers.range;
+
+    if (range) {
+      const parts = range.replace(/bytes=/, '').split('-');
+      const start = parseInt(parts[0], 10);
+      const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+      const chunksize = end - start + 1;
+      const fileStream = fs.createReadStream(filePath, { start, end });
+
+      res.writeHead(206, {
+        'Content-Range': `bytes ${start}-${end}/${fileSize}`,
+        'Accept-Ranges': 'bytes',
+        'Content-Length': chunksize,
+        'Content-Type': contentType,
+      });
+      return fileStream.pipe(res);
+    } else {
+      res.writeHead(200, {
+        'Content-Length': fileSize,
+        'Content-Type': contentType,
+        'Accept-Ranges': 'bytes',
+        'Content-Disposition': `inline; filename="call_${call.id}${isMp3 ? '.mp3' : '.wav'}"`,
+      });
+      return fs.createReadStream(filePath).pipe(res);
+    }
   }
 
   // Outbound call endpoint olib tashlandi

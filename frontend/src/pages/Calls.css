@@ -1,17 +1,24 @@
+.calls-page {
+  padding: 1.5rem;
+}
+
 .calls-page h1 {
-  margin-bottom: 2rem;
-  color: #2c3e50;
+  margin-bottom: 1.5rem;
+  color: #1e293b;
+  font-size: 1.5rem;
+  font-weight: 700;
 }
 
 .filters {
   background: white;
-  padding: 1.5rem;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  margin-bottom: 2rem;
+  padding: 1.25rem 1.5rem;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+  margin-bottom: 1.5rem;
   display: flex;
-  gap: 1rem;
+  gap: 1.25rem;
   align-items: flex-end;
+  border: 1px solid #e2e8f0;
 }
 
 .filter-group {
@@ -20,40 +27,48 @@
 
 .filter-group label {
   display: block;
-  margin-bottom: 0.5rem;
-  color: #555;
+  margin-bottom: 0.4rem;
+  color: #475569;
   font-weight: 500;
+  font-size: 0.875rem;
 }
 
 .filter-group input {
   width: 100%;
-  padding: 0.75rem;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  font-size: 1rem;
+  padding: 0.65rem 0.85rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  outline: none;
+}
+
+.filter-group input:focus {
+  border-color: #3b82f6;
 }
 
 .filters button {
-  padding: 0.75rem 1.5rem;
-  background-color: #3498db;
+  padding: 0.65rem 1.5rem;
+  background-color: #2563eb;
   color: white;
   border: none;
-  border-radius: 4px;
+  border-radius: 6px;
   cursor: pointer;
-  font-size: 1rem;
-  transition: background-color 0.3s;
-  height: fit-content;
+  font-size: 0.95rem;
+  font-weight: 500;
+  transition: background-color 0.2s;
+  height: 42px;
 }
 
 .filters button:hover {
-  background-color: #2980b9;
+  background-color: #1d4ed8;
 }
 
 .calls-table {
   background: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  border-radius: 12px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
   overflow-x: auto;
+  border: 1px solid #e2e8f0;
 }
 
 .calls-table table {
@@ -62,53 +77,137 @@
 }
 
 .calls-table th {
-  background-color: #f8f9fa;
-  padding: 1rem;
+  background-color: #f8fafc;
+  padding: 0.85rem 1rem;
   text-align: left;
   font-weight: 600;
-  color: #2c3e50;
-  border-bottom: 2px solid #dee2e6;
+  font-size: 0.85rem;
+  color: #475569;
+  border-bottom: 1px solid #e2e8f0;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
 }
 
 .calls-table td {
-  padding: 1rem;
-  border-bottom: 1px solid #dee2e6;
-  color: #555;
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid #f1f5f9;
+  color: #334155;
+  font-size: 0.9rem;
 }
 
 .calls-table tr:hover {
-  background-color: #f8f9fa;
+  background-color: #f8fafc;
+}
+
+.direction-badge {
+  display: inline-block;
+  padding: 0.2rem 0.5rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.direction-kiruvchi {
+  background-color: #e0f2fe;
+  color: #0369a1;
+}
+
+.direction-chiquvchi {
+  background-color: #fef3c7;
+  color: #b45309;
 }
 
 .status-badge {
-  padding: 0.25rem 0.75rem;
+  padding: 0.25rem 0.65rem;
   border-radius: 12px;
-  font-size: 0.875rem;
-  font-weight: 500;
+  font-size: 0.75rem;
+  font-weight: 600;
 }
 
 .status-yakunlandi {
-  background-color: #d4edda;
-  color: #155724;
+  background-color: #dcfce7;
+  color: #15803d;
 }
 
 .status-javobsiz {
-  background-color: #f8d7da;
-  color: #721c24;
+  background-color: #fee2e2;
+  color: #b91c1c;
+}
+
+.status-suhbatda {
+  background-color: #e0e7ff;
+  color: #4338ca;
+}
+
+.status-kelyapti {
+  background-color: #ffedd5;
+  color: #c2410c;
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
 }
 
 .btn-play {
-  padding: 0.5rem 1rem;
-  background-color: #3498db;
+  padding: 0.4rem 0.85rem;
+  background-color: #3b82f6;
   color: white;
   border: none;
-  border-radius: 4px;
+  border-radius: 6px;
   cursor: pointer;
-  font-size: 0.875rem;
-  transition: background-color 0.3s;
+  font-size: 0.8rem;
+  font-weight: 500;
+  transition: background-color 0.2s;
 }
 
 .btn-play:hover {
-  background-color: #2980b9;
+  background-color: #2563eb;
 }
 
+/* Audio Player Floating Modal */
+.audio-player-modal {
+  position: fixed;
+  bottom: 2rem;
+  right: 2rem;
+  z-index: 1000;
+  width: 420px;
+  max-width: calc(100vw - 4rem);
+}
+
+.audio-player-card {
+  background: white;
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+  border: 1px solid #cbd5e1;
+}
+
+.audio-player-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.audio-player-title {
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: #1e293b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.btn-close-audio {
+  background: transparent;
+  border: none;
+  font-size: 1.1rem;
+  color: #64748b;
+  cursor: pointer;
+  padding: 0.2rem;
+}
+
+.btn-close-audio:hover {
+  color: #0f172a;
+}

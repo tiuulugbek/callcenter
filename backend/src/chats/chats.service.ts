@@ -13,6 +13,14 @@ export class ChatsService {
     const chats = await this.prisma.chat.findMany({
       orderBy: { updatedAt: 'desc' },
       include: {
+        contact: {
+          select: {
+            id: true,
+            name: true,
+            phone: true,
+            company: true,
+          },
+        },
         messages: {
           orderBy: { createdAt: 'desc' },
           take: 1,
@@ -26,6 +34,15 @@ export class ChatsService {
     return this.prisma.chat.findUnique({
       where: { id },
       include: {
+        contact: {
+          select: {
+            id: true,
+            name: true,
+            phone: true,
+            company: true,
+            notes: true,
+          },
+        },
         messages: {
           orderBy: { createdAt: 'asc' },
         },
@@ -33,7 +50,7 @@ export class ChatsService {
     });
   }
 
-  async findOrCreateChat(channel: string, externalUserId: string, userName?: string) {
+  async findOrCreateChat(channel: string, externalUserId: string, userName?: string, contactId?: string) {
     let chat = await this.prisma.chat.findUnique({
       where: {
         channel_externalUserId: {
@@ -49,6 +66,15 @@ export class ChatsService {
           channel,
           externalUserId,
           userName,
+          contactId,
+        },
+      });
+    } else if ((userName && !chat.userName) || (contactId && !chat.contactId)) {
+      chat = await this.prisma.chat.update({
+        where: { id: chat.id },
+        data: {
+          ...(userName && !chat.userName ? { userName } : {}),
+          ...(contactId && !chat.contactId ? { contactId } : {}),
         },
       });
     }

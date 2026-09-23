@@ -43,6 +43,10 @@ model Call {
   operator Operator? @relation(fields: [operatorId], references: [id])
   contact  Contact?  @relation(fields: [contactId], references: [id])
 
+  @@index([startTime])
+  @@index([fromNumber])
+  @@index([contactId])
+  @@index([operatorId])
   @@map("calls")
 }
 
@@ -71,6 +75,7 @@ model Message {
 
   chat Chat @relation(fields: [chatId], references: [id], onDelete: Cascade)
 
+  @@index([chatId])
   @@map("messages")
 }
 
@@ -87,6 +92,7 @@ model Contact {
   calls Call[]
   chats Chat[]
 
+  @@index([phone])
   @@map("contacts")
 }
 

@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { WebSocketGateway } from '../common/websocket/websocket.gateway';
 import { CallsService } from '../calls/calls.service';
+import { PrismaService } from '../common/prisma/prisma.service';
 
 /**
  * AsteriskService - Call Log Monitoring System
@@ -20,6 +21,7 @@ export class AsteriskService {
     private configService: ConfigService,
     private wsGateway: WebSocketGateway,
     private callsService: CallsService,
+    private prisma: PrismaService,
   ) {}
 
   /**
@@ -64,6 +66,24 @@ export class AsteriskService {
     try {
       const recordingPath = `/var/spool/asterisk/recordings/call_${callId}.wav`;
       
+      // Mavjud kontakt bilan bog'lash (CRM integratsiyasi)
+      let matchedContact: any = null;
+      const targetPhone = direction === 'chiquvchi' ? toNumber : fromNumber;
+      if (targetPhone && targetPhone !== 'Noma\'lum') {
+        const cleanPhone = targetPhone.replace(/\D/g, '').slice(-9);
+        if (cleanPhone.length >= 7) {
+          try {
+            matchedContact = await this.prisma.contact.findFirst({
+              where: {
+                phone: { contains: cleanPhone },
+              },
+            });
+          } catch (e) {
+            this.logger.warn(`Contact lookup failed for phone: ${cleanPhone}`);
+          }
+        }
+      }
+
       const call = await this.callsService.create({
         direction,
         fromNumber,
@@ -72,6 +92,7 @@ export class AsteriskService {
         recordingPath,
         startTime: new Date(),
         status: 'kelyapti',
+        contactId: matchedContact?.id,
       });
 
       this.logger.log(`Call record created: ${call.id}, CallId: ${call.callId}, Direction: ${direction}, From: ${fromNumber}, To: ${toNumber}`);
@@ -83,6 +104,8 @@ export class AsteriskService {
           fromNumber,
           toNumber,
           direction,
+          contactName: matchedContact?.name || null,
+          contactCompany: matchedContact?.company || null,
           startTime: call.startTime.toISOString(),
           state: 'kelyapti',
         });

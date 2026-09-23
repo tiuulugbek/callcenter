@@ -4,6 +4,13 @@ import { callsApi } from '../services/api'
 import { format } from 'date-fns'
 import './Calls.css'
 
+interface Contact {
+  id: string
+  name: string
+  phone: string | null
+  company: string | null
+}
+
 interface Call {
   id: string
   direction: string
@@ -14,6 +21,12 @@ interface Call {
   duration: number
   status: string
   recordingPath: string | null
+  contact?: Contact | null
+  operator?: {
+    id: string
+    name: string
+    extension: string
+  } | null
 }
 
 const Calls = () => {
@@ -21,6 +34,7 @@ const Calls = () => {
   const [loading, setLoading] = useState(true)
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
+  const [activeAudio, setActiveAudio] = useState<{ url: string; title: string } | null>(null)
 
   useEffect(() => {
     loadCalls()
@@ -30,7 +44,6 @@ const Calls = () => {
     try {
       setLoading(true)
       const data = await callsApi.getAll({ startDate, endDate })
-      // Array tekshiruvi
       if (data && Array.isArray(data)) {
         setCalls(data)
       } else {
@@ -44,12 +57,14 @@ const Calls = () => {
     }
   }
 
-  const handlePlayRecording = async (callId: string) => {
+  const handlePlayRecording = async (call: Call) => {
     try {
-      const blob = await callsApi.getRecording(callId)
+      const blob = await callsApi.getRecording(call.id)
       const url = window.URL.createObjectURL(blob)
-      const audio = new Audio(url)
-      audio.play()
+      setActiveAudio({
+        url,
+        title: `${call.contact?.name ? call.contact.name + ' - ' : ''}${call.fromNumber} ➔ ${call.toNumber} (${format(new Date(call.startTime), 'dd.MM.yyyy HH:mm')})`
+      })
     } catch (error) {
       alert('Yozuvni yuklab bo\'lmadi')
     }
@@ -59,6 +74,8 @@ const Calls = () => {
     const labels: Record<string, string> = {
       yakunlandi: 'Yakunlandi',
       javobsiz: 'Javobsiz',
+      suhbatda: 'Suhbatda',
+      kelyapti: 'Kelyapti',
     }
     return labels[status] || status
   }
@@ -74,7 +91,7 @@ const Calls = () => {
   return (
     <Layout>
       <div className="calls-page">
-        <h1>Qo'ng'iroqlar</h1>
+        <h1>Qo'ng'iroqlar tarixi</h1>
 
         <div className="filters">
           <div className="filter-group">
@@ -93,7 +110,7 @@ const Calls = () => {
               onChange={(e) => setEndDate(e.target.value)}
             />
           </div>
-          <button onClick={loadCalls}>Qidirish</button>
+          <button onClick={loadCalls}>Filtrlash</button>
         </div>
 
         {loading ? (
@@ -104,27 +121,56 @@ const Calls = () => {
               <thead>
                 <tr>
                   <th>Yo'nalish</th>
-                  <th>Qayerdan</th>
-                  <th>Qayerga</th>
+                  <th>Mijoz (CRM)</th>
+                  <th>Kimdan</th>
+                  <th>Kimga</th>
+                  <th>Operator</th>
                   <th>Boshlanish vaqti</th>
                   <th>Davomiyligi</th>
                   <th>Holat</th>
-                  <th>Yozuv</th>
+                  <th>Audio Yozuv</th>
                 </tr>
               </thead>
               <tbody>
                 {calls.length === 0 ? (
                   <tr>
-                    <td colSpan={7} style={{ textAlign: 'center' }}>
+                    <td colSpan={9} style={{ textAlign: 'center', padding: '2rem' }}>
                       Qo'ng'iroqlar topilmadi
                     </td>
                   </tr>
                 ) : (
                   calls.map((call) => (
                     <tr key={call.id}>
-                      <td>{getDirectionLabel(call.direction)}</td>
+                      <td>
+                        <span className={`direction-badge direction-${call.direction}`}>
+                          {getDirectionLabel(call.direction)}
+                        </span>
+                      </td>
+                      <td>
+                        {call.contact ? (
+                          <div>
+                            <div style={{ fontWeight: 600, color: '#1e293b' }}>
+                              {call.contact.name}
+                            </div>
+                            {call.contact.company && (
+                              <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
+                                {call.contact.company}
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <span style={{ color: '#94a3b8' }}>-</span>
+                        )}
+                      </td>
                       <td>{call.fromNumber}</td>
                       <td>{call.toNumber}</td>
+                      <td>
+                        {call.operator ? (
+                          <span>{call.operator.name} ({call.operator.extension})</span>
+                        ) : (
+                          <span style={{ color: '#94a3b8' }}>-</span>
+                        )}
+                      </td>
                       <td>{format(new Date(call.startTime), 'dd.MM.yyyy HH:mm')}</td>
                       <td>{call.duration} sek</td>
                       <td>
@@ -136,12 +182,12 @@ const Calls = () => {
                         {call.recordingPath ? (
                           <button
                             className="btn-play"
-                            onClick={() => handlePlayRecording(call.id)}
+                            onClick={() => handlePlayRecording(call)}
                           >
-                            Eshitish
+                            ▶ Eshitish
                           </button>
                         ) : (
-                          <span>-</span>
+                          <span style={{ color: '#94a3b8' }}>-</span>
                         )}
                       </td>
                     </tr>
@@ -151,10 +197,29 @@ const Calls = () => {
             </table>
           </div>
         )}
+
+        {/* Audio Player Bar */}
+        {activeAudio && (
+          <div className="audio-player-modal">
+            <div className="audio-player-card">
+              <div className="audio-player-header">
+                <span className="audio-player-title">🎵 {activeAudio.title}</span>
+                <button
+                  className="btn-close-audio"
+                  onClick={() => setActiveAudio(null)}
+                >
+                  ✕
+                </button>
+              </div>
+              <audio controls autoPlay src={activeAudio.url} style={{ width: '100%', marginTop: '0.5rem' }}>
+                Brauzeringiz audio elementini qo'llab-quvvatlamaydi.
+              </audio>
+            </div>
+          </div>
+        )}
       </div>
     </Layout>
   )
 }
 
 export default Calls
-

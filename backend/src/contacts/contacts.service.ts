@@ -17,28 +17,18 @@ export class ContactsService {
       ];
     }
 
-    const contacts = await this.prisma.contact.findMany({
+    return this.prisma.contact.findMany({
       where,
       orderBy: { updatedAt: 'desc' },
-    });
-
-    // _count ni qo'lda qo'shish
-    return Promise.all(
-      contacts.map(async (contact) => {
-        const [callsCount, chatsCount] = await Promise.all([
-          this.prisma.call.count({ where: { contactId: contact.id } }),
-          this.prisma.chat.count({ where: { contactId: contact.id } }),
-        ]);
-
-        return {
-          ...contact,
-          _count: {
-            calls: callsCount,
-            chats: chatsCount,
+      include: {
+        _count: {
+          select: {
+            calls: true,
+            chats: true,
           },
-        };
-      })
-    );
+        },
+      },
+    });
   }
 
   async findById(id: string) {

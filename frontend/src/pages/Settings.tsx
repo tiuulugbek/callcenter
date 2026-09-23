@@ -507,11 +507,12 @@ const Settings = () => {
                 </button>
               </div>
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
-    </Layout>
-  )
+    </div>
+  </Layout>
+)
 }
 
 export default Settings

@@ -31,6 +31,14 @@ export class CallsService {
             extension: true,
           },
         },
+        contact: {
+          select: {
+            id: true,
+            name: true,
+            phone: true,
+            company: true,
+          },
+        },
       },
     });
   }
@@ -44,6 +52,14 @@ export class CallsService {
             id: true,
             name: true,
             extension: true,
+          },
+        },
+        contact: {
+          select: {
+            id: true,
+            name: true,
+            phone: true,
+            company: true,
           },
         },
       },
@@ -60,6 +76,8 @@ export class CallsService {
     endTime?: Date;
     duration?: number;
     status?: string;
+    contactId?: string;
+    operatorId?: string;
   }) {
     // Upsert - agar callId mavjud bo'lsa yangilash, yo'q bo'lsa yaratish
     // Agar callId null bo'lsa, oddiy create ishlatamiz
@@ -77,6 +95,8 @@ export class CallsService {
           recordingPath: data.recordingPath,
           startTime: data.startTime,
           status: data.status,
+          ...(data.contactId ? { contactId: data.contactId } : {}),
+          ...(data.operatorId ? { operatorId: data.operatorId } : {}),
         },
         create: data,
       });

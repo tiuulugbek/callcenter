@@ -37,8 +37,15 @@ export class AsteriskGateway implements OnModuleInit {
 
   private async connect() {
     try {
+      this.logger.log(`Connecting to ARI at ${this.ariUrl} with username: ${this.ariUsername}...`);
+      const auth = Buffer.from(`${this.ariUsername}:${this.ariPassword}`).toString('base64');
       const url = `${this.ariUrl}?api_key=${this.ariUsername}:${this.ariPassword}&app=call-center`;
-      this.ws = new WebSocket(url);
+      this.ws = new WebSocket(url, {
+        headers: {
+          Authorization: `Basic ${auth}`,
+        },
+        origin: 'http://localhost:8088',
+      });
 
       this.ws.on('open', () => {
         this.logger.log('Connected to Asterisk ARI WebSocket');

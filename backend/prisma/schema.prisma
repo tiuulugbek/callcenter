@@ -22,6 +22,7 @@ model Operator {
   updatedAt DateTime @updatedAt
 
   calls Call[]
+  deals Deal[]
 }
 
 model Call {
@@ -91,6 +92,7 @@ model Contact {
 
   calls Call[]
   chats Chat[]
+  deals Deal[]
 
   @@index([phone])
   @@map("contacts")
@@ -124,4 +126,58 @@ model SipExtension {
 
   @@map("sip_extensions")
 }
+
+model Pipeline {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  isDefault   Boolean  @default(false) @map("is_default")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  stages Stage[]
+  deals  Deal[]
+
+  @@map("pipelines")
+}
+
+model Stage {
+  id         String   @id @default(uuid())
+  name       String
+  color      String   @default("#3b82f6")
+  order      Int      @default(0)
+  pipelineId String   @map("pipeline_id")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  pipeline Pipeline @relation(fields: [pipelineId], references: [id], onDelete: Cascade)
+  deals    Deal[]
+
+  @@index([pipelineId])
+  @@map("stages")
+}
+
+model Deal {
+  id          String   @id @default(uuid())
+  title       String
+  amount      Float    @default(0)
+  pipelineId  String   @map("pipeline_id")
+  stageId     String   @map("stage_id")
+  contactId   String?  @map("contact_id")
+  operatorId  String?  @map("operator_id")
+  notes       String?  @db.Text
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  pipeline Pipeline  @relation(fields: [pipelineId], references: [id], onDelete: Cascade)
+  stage    Stage     @relation(fields: [stageId], references: [id], onDelete: Cascade)
+  contact  Contact?  @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  operator Operator? @relation(fields: [operatorId], references: [id], onDelete: SetNull)
+
+  @@index([pipelineId])
+  @@index([stageId])
+  @@index([contactId])
+  @@map("deals")
+}
+
 

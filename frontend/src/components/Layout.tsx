@@ -36,6 +36,12 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
             Mijozlar
           </Link>
           <Link
+            to="/kanban"
+            className={location.pathname === '/kanban' ? 'active' : ''}
+          >
+            Bitimlar (Kanban)
+          </Link>
+          <Link
             to="/settings"
             className={location.pathname === '/settings' ? 'active' : ''}
           >

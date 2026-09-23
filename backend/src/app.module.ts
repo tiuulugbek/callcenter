@@ -8,6 +8,8 @@ import { AuthModule } from './auth/auth.module';
 import { SettingsModule } from './settings/settings.module';
 import { ContactsModule } from './contacts/contacts.module';
 import { ExtensionsModule } from './extensions/extensions.module';
+import { PipelinesModule } from './pipelines/pipelines.module';
+import { DealsModule } from './deals/deals.module';
 import { PrismaModule } from './common/prisma/prisma.module';
 import { WebSocketModule } from './common/websocket/websocket.module';
 
@@ -26,6 +28,8 @@ import { WebSocketModule } from './common/websocket/websocket.module';
     SettingsModule,
     ContactsModule,
     ExtensionsModule,
+    PipelinesModule,
+    DealsModule,
   ],
 })
 export class AppModule {}

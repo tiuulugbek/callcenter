@@ -5,6 +5,7 @@ import Dashboard from './pages/Dashboard'
 import Calls from './pages/Calls'
 import Chats from './pages/Chats'
 import Contacts from './pages/Contacts'
+import Kanban from './pages/Kanban'
 import Settings from './pages/Settings'
 import PrivateRoute from './components/PrivateRoute'
 
@@ -43,6 +44,14 @@ function App() {
             element={
               <PrivateRoute>
                 <Contacts />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/kanban"
+            element={
+              <PrivateRoute>
+                <Kanban />
               </PrivateRoute>
             }
           />

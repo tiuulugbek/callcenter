@@ -181,5 +181,135 @@ export const extensionsApi = {
   },
 }
 
+export interface Deal {
+  id: string
+  title: string
+  amount: number
+  pipelineId: string
+  stageId: string
+  contactId?: string | null
+  operatorId?: string | null
+  notes?: string | null
+  createdAt: string
+  updatedAt: string
+  contact?: {
+    id: string
+    name: string
+    phone: string
+    company?: string
+  } | null
+  operator?: {
+    id: string
+    name: string
+    extension?: string
+  } | null
+  stage?: Stage
+}
+
+export interface Stage {
+  id: string
+  name: string
+  color: string
+  order: number
+  pipelineId: string
+  deals?: Deal[]
+  _count?: {
+    deals: number
+  }
+}
+
+export interface Pipeline {
+  id: string
+  name: string
+  description?: string
+  isDefault: boolean
+  stages: Stage[]
+  _count?: {
+    deals: number
+  }
+}
+
+export const pipelinesApi = {
+  getAll: async () => {
+    const response = await api.get('/pipelines')
+    return response.data
+  },
+  getById: async (id: string) => {
+    const response = await api.get(`/pipelines/${id}`)
+    return response.data
+  },
+  create: async (data: { name: string; description?: string; isDefault?: boolean }) => {
+    const response = await api.post('/pipelines', data)
+    return response.data
+  },
+  update: async (id: string, data: { name?: string; description?: string; isDefault?: boolean }) => {
+    const response = await api.put(`/pipelines/${id}`, data)
+    return response.data
+  },
+  delete: async (id: string) => {
+    const response = await api.delete(`/pipelines/${id}`)
+    return response.data
+  },
+  addStage: async (pipelineId: string, data: { name: string; color?: string }) => {
+    const response = await api.post(`/pipelines/${pipelineId}/stages`, data)
+    return response.data
+  },
+  updateStage: async (stageId: string, data: { name?: string; color?: string; order?: number }) => {
+    const response = await api.put(`/pipelines/stages/${stageId}`, data)
+    return response.data
+  },
+  deleteStage: async (stageId: string) => {
+    const response = await api.delete(`/pipelines/stages/${stageId}`)
+    return response.data
+  },
+}
+
+export const dealsApi = {
+  getAll: async (params?: { pipelineId?: string; stageId?: string; contactId?: string }) => {
+    const response = await api.get('/deals', { params })
+    return response.data
+  },
+  getById: async (id: string) => {
+    const response = await api.get(`/deals/${id}`)
+    return response.data
+  },
+  create: async (data: {
+    title: string
+    amount?: number
+    pipelineId: string
+    stageId: string
+    contactId?: string
+    operatorId?: string
+    notes?: string
+  }) => {
+    const response = await api.post('/deals', data)
+    return response.data
+  },
+  update: async (
+    id: string,
+    data: {
+      title?: string
+      amount?: number
+      pipelineId?: string
+      stageId?: string
+      contactId?: string | null
+      operatorId?: string | null
+      notes?: string | null
+    },
+  ) => {
+    const response = await api.put(`/deals/${id}`, data)
+    return response.data
+  },
+  updateStage: async (id: string, stageId: string) => {
+    const response = await api.patch(`/deals/${id}/stage`, { stageId })
+    return response.data
+  },
+  delete: async (id: string) => {
+    const response = await api.delete(`/deals/${id}`)
+    return response.data
+  },
+}
+
 export default api
+
 
